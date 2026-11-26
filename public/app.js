@@ -95,7 +95,13 @@ $('#homeBtn').onclick = () => { goHome(); Home.selectTab(Home.acct.profile ? 'ra
 function onJoined(r) { store.set({ code: r.code, playerId: r.playerId }); Home.clearReward(); }
 $('#againBtn').onclick = () => emit('play_again');
 $('#closeOverlay').onclick = () => { overlayClosed = true; $('#overlay').classList.add('hidden'); stopConfetti(); };
-$('#identityBtn').onclick = () => { showId = !showId; if (showId) A.sfx.card(); renderGame(); };
+$('#identityBtn').onclick = () => {
+  showId = !showId;
+  if (showId) A.sfx.card();
+  renderGame();
+  // buka kartu → kamera menyorot karaktermu di papan
+  if (showId && me && me.alive && priv.charId && board) { board.spotlightMine(priv.charId); setTimeout(() => A.sfx.land && A.sfx.land(), 350); }
+};
 
 // ---------- socket ----------
 // ---------- akun ----------
@@ -320,7 +326,7 @@ function renderGame() {
   if (open) { const src = getPortrait(myChar.id); if (av.getAttribute('src') !== src) av.src = src; av.alt = `Foto ${myChar.name}`; }
   $('#idName').textContent = open ? myChar.name.toUpperCase() + (me.alive ? '' : ' · TERSINGKIR') : '';
   $('#identityText').textContent = !myChar ? '…' : open ? myChar.bio : 'Ketuk untuk lihat identitasmu';
-  $('#idHint').textContent = !myChar ? '' : !me.alive ? 'Topengmu sudah terbuka.' : showId ? 'Ketuk untuk sembunyikan · ◆ di papan = kamu' : 'Jaga layarmu dari intipan!';
+  $('#idHint').textContent = !myChar ? '' : !me.alive ? 'Topengmu sudah terbuka.' : showId ? 'Karaktermu disorot cahaya emas "INI KAMU" di papan · ketuk untuk sembunyikan' : 'Jaga layarmu dari intipan!';
 
   const moves = s.legalMoves || [];
   const ui = {

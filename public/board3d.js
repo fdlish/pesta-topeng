@@ -431,6 +431,60 @@ export class Board3D {
       this.scene.add(g);
       this.figures.set(c.id, { group: g, inner, body, pickables, ring, star, tag, room: null, slot: null, lift: 0, removing: false });
     });
+    this.buildMeMarker();
+  }
+
+  // Penanda "INI KAMU": pilar cahaya emas + cincin berdenyut + gelombang + label besar.
+  // Hanya tampil di layarmu sendiri, selama kartu identitas dibuka.
+  buildMeMarker() {
+    const m = new THREE.Group(); m.visible = false;
+    const beamTex = canvasTex(4, 128, (x, w, h) => {
+      const gr = x.createLinearGradient(0, 0, 0, h);
+      gr.addColorStop(0, 'rgba(255,224,150,0)'); gr.addColorStop(0.55, 'rgba(255,214,120,.35)'); gr.addColorStop(1, 'rgba(255,214,120,.9)');
+      x.fillStyle = gr; x.fillRect(0, 0, w, h);
+    });
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.62, 4.6, 40, 1, true),
+      new THREE.MeshBasicMaterial({ map: beamTex, color: '#ffd889', transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }));
+    beam.position.y = 2.3; beam.renderOrder = 4;
+    const ringMat = new THREE.MeshBasicMaterial({ color: '#ffd27a', transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending });
+    const ring = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.62, 56), ringMat);
+    ring.rotation.x = -Math.PI / 2; ring.position.y = 0.03;
+    const glow = new THREE.Mesh(new THREE.CircleGeometry(0.5, 48), new THREE.MeshBasicMaterial({ color: '#ffcf6b', transparent: true, opacity: 0.22, depthWrite: false, blending: THREE.AdditiveBlending }));
+    glow.rotation.x = -Math.PI / 2; glow.position.y = 0.025;
+    const wave = new THREE.Mesh(new THREE.RingGeometry(0.56, 0.61, 56), ringMat.clone());
+    wave.rotation.x = -Math.PI / 2; wave.position.y = 0.035;
+    // label tetap terbaca di layar (ukuran tidak mengecil saat kamera menjauh)
+    const c = document.createElement('canvas'); c.width = 512; c.height = 192;
+    const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), depthTest: false, transparent: true, sizeAttenuation: false }));
+    label.material.map.colorSpace = THREE.SRGBColorSpace;
+    label.scale.set(0.2, 0.075, 1); label.renderOrder = 9; label.center.set(0.5, 0);
+    const pin = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.3, 4), new THREE.MeshBasicMaterial({ color: '#ffd27a', depthTest: false, transparent: true }));
+    pin.rotation.x = Math.PI; pin.renderOrder = 8;
+    m.add(beam, glow, ring, wave);
+    this.scene.add(m, label, pin);
+    label.visible = pin.visible = false;
+    this.me = { group: m, beam, ring, glow, wave, label, pin, canvas: c, labelFor: null };
+  }
+  drawMeLabel(name) {
+    const { canvas: c, label } = this.me, g = c.getContext('2d');
+    g.clearRect(0, 0, c.width, c.height);
+    g.fillStyle = 'rgba(11,14,19,.94)'; g.strokeStyle = '#f2cf7a'; g.lineWidth = 6;
+    g.beginPath(); g.roundRect(14, 10, 484, 150, 40); g.fill(); g.stroke();
+    g.beginPath(); g.moveTo(236, 158); g.lineTo(256, 186); g.lineTo(276, 158); g.closePath(); g.fillStyle = '#f2cf7a'; g.fill();
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillStyle = '#f2cf7a'; g.font = '800 64px Inter, system-ui, sans-serif'; g.fillText('INI KAMU', 256, 66);
+    g.fillStyle = '#f3ead7'; g.font = '600 38px Inter, system-ui, sans-serif'; g.fillText(name, 256, 124);
+    label.material.map.needsUpdate = true;
+  }
+
+  // Kamera meluncur ke karaktermu, menahan sebentar, lalu kembali.
+  spotlightMine(id) {
+    const f = this.figures.get(id);
+    if (!f || !f.group.visible || REDUCED) return;
+    if (this.rolling || this.cineF || (this.drag && this.drag.started)) return;
+    if (!this.camMode) this.camSaved = { pos: this.camera.position.clone(), target: this.controls.target.clone() };
+    this.camFrom = null; this.camMode = 'spot'; this.spotF = f; this.spotT = 0; this.controls.enabled = false;
+    this.dirty = true;
   }
 
   // ================= kamera =================
@@ -472,6 +526,7 @@ export class Board3D {
     el.addEventListener('contextmenu', e => e.preventDefault());
     el.addEventListener('pointerdown', e => {
       down = { x: e.clientX, y: e.clientY, t: performance.now() };
+      if (this.camMode === 'spot') { this.camMode = 'return'; this.camT = 0; this.camDur = 0.5; this.spotF = null; } // sentuhan menghentikan sorotan
       if (this.rolling || this.drag) return;
       const hit = this.pick(e);
       if (hit && hit.charId && (this.ui.movable || []).includes(hit.charId)) {
@@ -746,7 +801,16 @@ export class Board3D {
   updateCinematicCamera(dt) {
     if (!this.camMode || !this.camSaved) return false;
     const s = this.camSaved;
-    if (this.camMode === 'follow' && this.cineF) {
+    if (this.camMode === 'spot' && this.spotF) {
+      this.spotT += dt;
+      const fp = this.spotF.group.position;
+      const dir = s.pos.clone().sub(s.target).normalize();
+      const wantT = new THREE.Vector3(fp.x, FLOOR_Y + 0.7, fp.z);
+      const wantP = wantT.clone().add(dir.multiplyScalar(Math.min(8.5, s.pos.distanceTo(s.target) * 0.36)));
+      const k = Math.min(1, dt * 5);
+      this.controls.target.lerp(wantT, k); this.camera.position.lerp(wantP, k);
+      if (this.spotT > 1.9) { this.camMode = 'return'; this.camT = 0; this.camDur = 0.8; this.spotF = null; }
+    } else if (this.camMode === 'follow' && this.cineF) {
       const fp = this.cineF.group.position;
       const dir = s.pos.clone().sub(s.target).normalize();
       const wantT = new THREE.Vector3(fp.x, FLOOR_Y + 0.6, fp.z);
@@ -798,7 +862,7 @@ export class Board3D {
         const tgt = new THREE.Vector3(drag.pos.x, FLOOR_Y + 0.9, drag.pos.z);
         f.group.position.lerp(tgt, Math.min(1, dt * 20));
         f.inner.rotation.z = THREE.MathUtils.clamp((tgt.x - f.group.position.x) * -0.6, -0.4, 0.4);
-        f.ring.visible = false; f.star.visible = ui.mine === id; f.tag.visible = true;
+        f.ring.visible = false; f.star.visible = false; f.tag.visible = true;
         continue;
       }
       f.inner.rotation.z = 0;
@@ -812,10 +876,28 @@ export class Board3D {
       f.lift += (lift - f.lift) * Math.min(1, dt * 12);
       f.inner.position.y = f.lift;
       f.body.material.emissiveIntensity = sel ? 0.12 : 0;
-      f.star.visible = ui.mine === id;
-      f.star.position.y = 1.78 + f.lift + (f.tag.visible ? 0.2 : 0);
-      f.tag.visible = !!(sel || targets.has(id));
+      f.star.visible = false;
+      f.tag.visible = !!(sel || targets.has(id)) && ui.mine !== id;
       f.tag.position.y = 1.62 + f.lift;
+    }
+    // penanda "INI KAMU" mengikuti karaktermu (juga saat sedang diseret / dipindah pemain lain)
+    const mf = ui.mine && this.figures.get(ui.mine);
+    const me = this.me, showMe = !!(mf && mf.group.visible && !mf.removing);
+    me.group.visible = me.label.visible = me.pin.visible = showMe;
+    if (showMe) {
+      if (me.labelFor !== ui.mine) { me.labelFor = ui.mine; this.drawMeLabel(this.meta.characters.find(c => c.id === ui.mine)?.name || ''); }
+      const gp = mf.group.position, lift = (mf.lift || 0) * FIG_S;
+      me.group.position.set(gp.x, gp.y, gp.z);
+      const top = gp.y + lift + 2.05 * FIG_S;
+      const bob = REDUCED ? 0 : Math.sin(time * 3) * 0.06;
+      me.pin.position.set(gp.x, top + 0.2 + bob, gp.z);
+      me.label.position.set(gp.x, top + 0.42 + bob, gp.z);
+      me.ring.material.opacity = REDUCED ? 0.9 : 0.65 + 0.35 * pulse;
+      me.beam.material.opacity = REDUCED ? 0.5 : 0.38 + 0.17 * pulse;
+      me.glow.material.opacity = 0.16 + 0.12 * pulse;
+      const w = REDUCED ? 0 : (time * 0.7) % 1;
+      me.wave.visible = !REDUCED;
+      me.wave.scale.setScalar(1 + w * 1.1); me.wave.material.opacity = (1 - w) * 0.7;
     }
     if (ui.canRoll && !this.rolling) { // dadu "memanggil" saat giliranmu melempar
       this.die.position.y = DIE_REST.y + Math.abs(Math.sin(time * 3)) * 0.18;
@@ -872,7 +954,7 @@ export class Board3D {
       if (this.waveAcc > 0.05) { this.waveTex.offset.x = time * 0.012; this.waveTex.offset.y = Math.sin(time * 0.3) * 0.02; this.waveAcc = 0; waveTick = true; }
     }
     const camMoved = this.updateCinematicCamera(dt) || this.controls.update();
-    const animating = this.tweens.length || this.camMode || (ui.canRoll && !this.rolling) || shading || drag || movable.size || targets.size || dests.size || ui.selected || ui.killSel;
+    const animating = this.tweens.length || this.camMode || showMe || (ui.canRoll && !this.rolling) || shading || drag || movable.size || targets.size || dests.size || ui.selected || ui.killSel;
     if (!animating && !camMoved && !this.dirty && !waveTick) return;
     this.dirty = false;
     this.renderer.render(this.scene, this.camera);
