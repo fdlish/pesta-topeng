@@ -223,7 +223,7 @@ function draw(g, pid) {
   const room = g.figures[id] || null;
   delete g.figures[id]; delete g.spots[id];
   event(g, 'left', id, { by: p.id, room });
-  log(g, `${p.name} mengambil kartu: ${charLabel(id)} ${wasOnBoard ? 'pulang dari pesta' : '(sudah tidak di pesta)'}.`);
+  log(g, `${p.name} membuka kartu: ${charLabel(id)} ${wasOnBoard ? 'pulang dari pesta' : '(sudah tidak di pesta)'}.`);
   nextTurn(g);
 }
 

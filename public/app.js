@@ -384,8 +384,8 @@ function renderGame() {
       ? `Geser ${ch(selected).name} ke benua berbingkai hijau (atau ketuk benuanya).`
       : `${DIE_LABEL[s.die]}: pindahkan satu tamu MASUK ke / KELUAR dari ${META.roomLabel[s.die]}. Tahan bidak bercincin emas, lalu geser.`;
   } else if (s.step === 'BLACK') {
-    msg.textContent = killSel ? `Ketuk ${ch(killSel).name} sekali lagi untuk membuka topengnya.` : 'HITAM! Ketuk bidak bercincin merah (satu benua denganmu) untuk membuka topengnya' + (priv.canDraw ? ', atau ambil kartu tamu biasa.' : '. Kamu wajib membuka topeng seseorang.');
-    if (priv.canDraw) { const b = btnWithIcon('btn', ICON.card, `Ambil kartu tamu (${me.cards.length}/3)`); b.onclick = () => emit('draw'); ap.append(b); }
+    msg.textContent = killSel ? `Ketuk ${ch(killSel).name} sekali lagi untuk membuka topengnya.` : 'HITAM! Ketuk bidak bercincin merah (satu benua denganmu) untuk membuka topengnya' + (priv.canDraw ? ', atau buka kartu tamu biasa.' : '. Kamu wajib membuka topeng seseorang.');
+    if (priv.canDraw) { const b = btnWithIcon('btn', ICON.card, `Buka kartu tamu (${me.cards.length}/3)`); b.onclick = () => emit('draw'); ap.append(b); }
   }
   ap.prepend(msg);
 
@@ -423,12 +423,12 @@ function showReveal(ev, done) {
   if (ev.type === 'eliminated') {
     kicker = ev.self ? 'SENDIRIAN!' : 'TOPENG TERBUKA!';
     title = isMe ? 'Kamu tersingkir' : `${victim ? victim.name : '?'} tersingkir`;
-    line = ev.self ? `Ketahuan sendirian. Ternyata dia adalah` : `Dibuka oleh ${pname(ev.by)}. Ternyata dia adalah`;
+    line = ev.self ? `Ketahuan sendirian. Ternyata dia adalah` : `${pname(ev.by)} membuka topeng. Ternyata dia adalah`;
     if (isMe) { A.sfx.lose(); vibrate([80, 60, 160]); } else { A.sfx.unmask(); vibrate(60); }
   } else if (ev.type === 'killed') {
-    kicker = 'HANYA TAMU BIASA'; title = 'Salah sasaran!'; line = `${pname(ev.by)} membuka topeng`; A.sfx.poof();
+    kicker = 'HANYA TAMU BIASA'; title = 'Salah sasaran!'; line = `${pname(ev.by)} membuka topeng. Ternyata hanya`; A.sfx.poof();
   } else {
-    kicker = 'TAMU PULANG'; title = `${c.name} pulang dari pesta`; line = `Kartu diambil oleh ${pname(ev.by)}:`; A.sfx.card();
+    kicker = 'KARTU DIBUKA'; title = `${pname(ev.by)} membuka kartu`; line = 'Tamu ini disuruh pulang dari pesta:'; A.sfx.card();
   }
   front.append(el('p', 'rv-kicker', kicker), pic, el('h3', 'rv-title', title), el('p', 'rv-line', line), el('p', 'rv-role', c.name.toUpperCase()));
   if (ev.room && META.roomLabel[ev.room]) { // benua tempat topeng dibuka / tamu pulang
