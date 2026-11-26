@@ -73,11 +73,16 @@ async function ensureEnv() {
 
 // ---------------------------------------------------------- dependensi --
 function ensureDeps() {
-  const need = ['express', 'socket.io', 'three', '@supabase/supabase-js'].some(m => !fs.existsSync(path.join(ROOT, 'node_modules', m)));
-  if (!need) return;
+  // pasang ulang bila ada paket yang belum ada ATAU package-lock berubah sejak pemasangan terakhir (mis. font baru)
+  const lock = fs.existsSync(path.join(ROOT, 'package-lock.json')) ? require('crypto').createHash('sha1').update(fs.readFileSync(path.join(ROOT, 'package-lock.json'))).digest('hex') : '';
+  const mark = path.join(ROOT, 'node_modules', '.pesta-lock');
+  const missing = ['express', 'socket.io', 'three', '@supabase/supabase-js', '@fontsource/shrikhand', '@fontsource/plus-jakarta-sans'].some(m => !fs.existsSync(path.join(ROOT, 'node_modules', m)));
+  const changed = !fs.existsSync(mark) || fs.readFileSync(mark, 'utf8') !== lock;
+  if (!missing && !changed) return;
   log('Memasang dependensi (sekali saja, 1–2 menit)…');
   const r = spawnSync(IS_WIN ? 'npm.cmd' : 'npm', ['ci', '--omit=dev', '--no-audit', '--no-fund'], { cwd: ROOT, stdio: 'inherit', shell: IS_WIN });
   if (r.status !== 0) { log('Gagal memasang dependensi. Pastikan internet tersambung lalu coba lagi.'); process.exit(1); }
+  try { fs.writeFileSync(mark, lock); } catch {}
 }
 
 // ----------------------------------------------------------- cloudflared --
