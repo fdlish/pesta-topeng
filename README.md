@@ -113,6 +113,22 @@ Repo ini punya `render.yaml`. Di Render: **New → Blueprint →** pilih repo in
 
 Tanpa env Supabase, server otomatis memakai **mode lokal**: tombol berubah menjadi "Buat akun (mode lokal)", akun dibuat per perangkat, dan data disimpan di `data/local-store.json`. Mode ini untuk pengembangan dan tes saja (data hilang saat server Render tidur / redeploy).
 
+## Online dari laptop sendiri (gratis, tanpa kartu) — Windows
+1. Ekstrak folder `pesta-topeng` ke mana saja, misalnya `Documents\pesta-topeng`.
+2. Klik dua kali **`MAIN-ONLINE.bat`**.
+   - Kalau Node.js belum ada, skrip memasangnya lewat winget. Setelah itu tutup jendela lalu klik lagi.
+   - Pertama kali, kamu diminta menempel `SUPABASE_SECRET_KEY` (disimpan di file `.env`, hanya di laptopmu). Kosongkan kalau mau jalan tanpa akun/poin dulu.
+   - Dependensi dan `cloudflared` (dari GitHub resmi Cloudflare) diunduh otomatis sekali saja.
+3. Link publik `https://….trycloudflare.com` muncul di jendela, dibuka di browser, dan disimpan di `LINK-GAME.txt`. Bagikan ke teman.
+4. Biarkan jendela tetap terbuka. Tutup jendela (atau Ctrl+C) untuk mematikan.
+
+Catatan:
+- Link **berubah** setiap kali dijalankan ulang. Server dan tunnel dinyalakan ulang otomatis kalau terputus.
+- Agar menyala sendiri setiap Windows hidup: jalankan **`PASANG-OTOMATIS.bat`** (batalkan dengan `HAPUS-OTOMATIS.bat`).
+- Atur Windows agar laptop **tidak sleep** saat dicolok: Settings → System → Power → Screen and sleep → "When plugged in, put my device to sleep after: Never".
+- Quick Tunnel Cloudflare ditujukan untuk uji coba (maks. 200 request bersamaan, tanpa jaminan uptime). Untuk link tetap, pakai Cloudflare Tunnel bernama + domain sendiri.
+- Supaya login Google kembali ke link tunnel, tambahkan `https://*.trycloudflare.com/**` di Supabase → Authentication → URL Configuration → Redirect URLs.
+
 ## Jalankan lokal
 ```bash
 npm install
