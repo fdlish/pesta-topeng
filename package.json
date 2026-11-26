@@ -1,0 +1,29 @@
+{
+  "name": "pesta-topeng",
+  "version": "1.0.0",
+  "description": "Game deduksi pesta topeng multiplayer berbasis web (3-8 pemain)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test/accounts.js",
+    "test:sim": "node test/sim.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@fontsource/inter": "^5.3.0",
+    "@fontsource/playfair-display": "^5.3.0",
+    "@supabase/supabase-js": "2.119.2",
+    "express": "^5.3.0",
+    "nanoid": "^3.3.20",
+    "socket.io": "^4.8.4",
+    "three": "^0.187.0"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.6.0",
+    "socket.io-client": "^4.8.4"
+  },
+  "engines": {
+    "node": ">=20.12"
+  }
+}

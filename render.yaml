@@ -1,0 +1,22 @@
+# Render Blueprint — deploy 1 klik: Render Dashboard → New → Blueprint → pilih repo ini.
+services:
+  - type: web
+    name: pesta-topeng
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm ci --omit=dev
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: SUPABASE_URL
+        value: https://dgqpedigzbdrpjvonjfi.supabase.co
+      # kunci publik (aman dibagikan, dipakai browser untuk login Google)
+      - key: SUPABASE_PUBLISHABLE_KEY
+        value: sb_publishable_1oEVJmLy7LkHCt36qx1bOQ_XF0BlQ9C
+      # kunci RAHASIA: diisi manual saat membuat Blueprint (jangan di-commit)
+      - key: SUPABASE_SECRET_KEY
+        sync: false

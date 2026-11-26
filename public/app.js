@@ -1,0 +1,490 @@
+import { Board3D, setReducedMotion } from './board3d.js';
+import * as A from './audio.js';
+import { initPortraits, getPortrait, warmAll } from './portraits.js';
+import * as Auth from './auth.js';
+import * as Home from './home.js';
+
+const $ = s => document.querySelector(s);
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+const vibrate = p => { try { navigator.vibrate && navigator.vibrate(p); } catch {} };
+
+const socket = io({ autoConnect: false });
+const store = {
+  get() { try { return JSON.parse(localStorage.getItem('pestaTopeng') || '{}'); } catch { return {}; } },
+  set(v) { try { localStorage.setItem('pestaTopeng', JSON.stringify({ ...store.get(), ...v })); } catch {} },
+  clearRoom() { const s = store.get(); delete s.code; delete s.playerId; try { localStorage.setItem('pestaTopeng', JSON.stringify(s)); } catch {} },
+};
+
+let META, board = null, state = null, priv = {}, me = null, clockOffset = 0, selected = null, killSel = null, showId = false, overlayClosed = false;
+let seenEventId = null, prevTurnId = null, prevPlayerCount = 0, turnStartAt = 0, lastTick = -1, introPending = false;
+const fxQueue = [];
+
+const SVG = '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">';
+const ICON = {
+  dice: SVG + '<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.3" fill="currentColor"/><circle cx="15.5" cy="15.5" r="1.3" fill="currentColor"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/></svg>',
+  card: SVG + '<rect x="6" y="3" width="13" height="18" rx="2"/><path d="M3 7v12a2 2 0 0 0 2 2"/></svg>',
+  crown: SVG + '<path d="M2 18h20l-2-11-5 5-3-7-3 7-5-5z"/></svg>',
+};
+const MASK_SVG = '<svg class="mask-svg" viewBox="0 0 64 40" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M2 7C10 1 22 2 32 10C42 2 54 1 62 7C64 22 56 34 44 34C38 34 35 27 32 27C29 27 26 34 20 34C8 34 0 22 2 7ZM12 17C14 13 21 13 25 17C21 21 15 21 12 17ZM39 17C43 13 50 13 52 17C49 21 43 21 39 17Z"/></svg>';
+function btnWithIcon(cls, icon, text) { const b = el('button', cls); b.innerHTML = icon; b.append(el('span', null, text)); return b; }
+const DIE_LABEL = { asia: 'ASIA', afrika: 'AFRIKA', eropa: 'EROPA', amerika: 'AMERIKA', antartika: 'ANTARTIKA', hitam: 'HITAM' };
+
+// ---------- util ----------
+function toast(msg, kind) {
+  const t = $('#toast'); t.textContent = msg; t.className = 'toast' + (kind ? ' ' + kind : '');
+  if (kind === 'error') A.sfx.error();
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.add('hidden'), 2800);
+}
+function emit(ev, data) {
+  return new Promise(res => socket.emit(ev, data, r => { if (r && r.error) toast(r.error, 'error'); res(r || {}); }));
+}
+let shown = null;
+function show(id) {
+  if (shown !== id) { shown = id; Home.subscribeRooms(id === 'home'); }
+  for (const s of document.querySelectorAll('.screen')) {
+    const on = s.id === id;
+    if (on && s.classList.contains('hidden')) { s.classList.remove('hidden'); s.classList.remove('enter'); void s.offsetWidth; s.classList.add('enter'); }
+    else if (!on) s.classList.add('hidden');
+  }
+}
+const ch = id => META.characters.find(c => c.id === id);
+const pname = id => (state && state.players.find(p => p.id === id) || {}).name || '?';
+const hue = str => [...str].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
+function initialAvatar(name, cls = 'p-avatar') {
+  const a = el('span', cls, (name || '?').trim().slice(0, 1).toUpperCase());
+  a.style.setProperty('--h', hue(name || '?')); a.setAttribute('aria-hidden', 'true');
+  return a;
+}
+
+// ---------- audio: buka pada interaksi pertama + tombol ----------
+const unlock = () => { if (A.unlock()) for (const ev of ['pointerdown', 'touchend', 'keydown']) document.removeEventListener(ev, unlock, true); };
+for (const ev of ['pointerdown', 'touchend', 'keydown']) document.addEventListener(ev, unlock, true);
+document.addEventListener('click', e => { if (e.target.closest('button:not(.roll):not(#identityBtn)')) A.sfx.click(); });
+function syncAudioBtns() {
+  for (const [id, on] of [['#musicBtn', A.isMusicOn()], ['#sfxBtn', A.isSfxOn()]]) { const b = $(id); b.setAttribute('aria-pressed', String(on)); b.classList.toggle('off', !on); }
+}
+$('#musicBtn').onclick = () => { A.setMusic(!A.isMusicOn()); syncAudioBtns(); toast(A.isMusicOn() ? 'Musik latar menyala' : 'Musik latar dimatikan'); };
+$('#sfxBtn').onclick = () => { A.setSfx(!A.isSfxOn()); syncAudioBtns(); toast(A.isSfxOn() ? 'Efek suara menyala' : 'Efek suara dimatikan'); };
+syncAudioBtns();
+
+// ---------- home ----------
+function buildCast() { // barisan 20 tamu di layar awal (foto dirender bertahap)
+  const track = $('#castTrack');
+  const items = META.characters.map(c => {
+    const it = el('figure', 'cast-item');
+    const face = el('span', 'cast-face'); face.setAttribute('aria-hidden', 'true');
+    const img = el('img'); img.alt = ''; img.dataset.id = c.id; img.decoding = 'async';
+    face.append(img);
+    it.append(face, el('figcaption', null, c.name));
+    return it;
+  });
+  track.replaceChildren(...items, ...items.map(n => { const k = n.cloneNode(true); k.setAttribute('aria-hidden', 'true'); return k; }));
+  warmAll(id => { for (const im of track.querySelectorAll(`img[data-id="${id}"]`)) { im.onload = () => im.classList.add('ready'); im.src = getPortrait(id); } });
+}
+
+// ---------- lobby ----------
+$('#shareBtn').onclick = async () => {
+  const link = `${location.origin}/?room=${state.code}`;
+  try { if (navigator.share) await navigator.share({ title: 'Pesta Topeng', text: `Ayo main Pesta Topeng! Kode room: ${state.code}`, url: link }); else { await navigator.clipboard.writeText(link); toast('Link undangan disalin!'); } }
+  catch { toast(link); }
+};
+$('#startBtn').onclick = () => emit('start_game');
+function goHome() { socket.emit('leave'); store.clearRoom(); state = null; history.replaceState(null, '', '/'); $('#overlay').classList.add('hidden'); stopConfetti(); show('home'); }
+$('#leaveBtn').onclick = goHome;
+$('#homeBtn').onclick = () => { goHome(); Home.selectTab(Home.acct.profile ? 'rank' : 'play'); };
+function onJoined(r) { store.set({ code: r.code, playerId: r.playerId }); Home.clearReward(); }
+$('#againBtn').onclick = () => emit('play_again');
+$('#closeOverlay').onclick = () => { overlayClosed = true; $('#overlay').classList.add('hidden'); stopConfetti(); };
+$('#identityBtn').onclick = () => { showId = !showId; if (showId) A.sfx.card(); renderGame(); };
+
+// ---------- socket ----------
+// ---------- akun ----------
+let authToken = null, sentToken;
+async function sendAuth(fresh) {
+  sentToken = authToken;
+  const r = await new Promise(res => socket.emit('auth', { token: authToken }, res));
+  if (r) Home.applyMe(r, { fresh });
+  if (r && r.error) toast(r.error, 'error');
+}
+function onAuthToken(token, event) {
+  authToken = token;
+  if (socket.connected && token !== sentToken) sendAuth(event === 'SIGNED_IN');
+}
+socket.on('reward', r => { Home.setReward(r); if (state && state.phase === 'GAME_OVER') render(); });
+
+socket.on('connect', async () => {
+  $('#conn').classList.add('hidden');
+  await sendAuth(false);
+  if (shown === 'home' || !shown) Home.subscribeRooms(true);
+  const s = store.get();
+  if (s.code && s.playerId) {
+    const r = await new Promise(res => socket.emit('join_room', { code: s.code, playerId: s.playerId }, res));
+    if (r.error) { store.clearRoom(); show('home'); }
+  }
+});
+socket.on('disconnect', () => $('#conn').classList.remove('hidden'));
+socket.on('connect_error', () => $('#conn').classList.remove('hidden'));
+socket.on('state', s => {
+  const prev = state;
+  const prevPhase = prev && prev.phase;
+  state = s; clockOffset = s.serverNow - Date.now();
+  me = s.players.find(p => p.id === store.get().playerId) || null;
+  if (s.phase !== 'PLAYING' || s.step !== 'MOVE') selected = null;
+  if (s.step !== 'BLACK') killSel = null;
+  if (prevPhase !== 'GAME_OVER' && s.phase === 'GAME_OVER') { overlayClosed = false; celebrated = false; }
+  if (s.phase === 'PLAYING' && prevPhase !== 'PLAYING') { showId = false; if (prevPhase === 'LOBBY') { introPending = true; A.sfx.start(); setTimeout(() => banner('PESTA DIMULAI', 'Temukan topeng lawan!'), 50); } }
+  if (s.phase === 'LOBBY' && prevPhase === 'GAME_OVER') { stopConfetti(); Home.clearReward(); }
+  if (s.phase === 'PLAYING' && prevPhase !== 'PLAYING') Home.clearReward();
+  // pemain baru bergabung di lobby
+  if (s.phase === 'LOBBY' && prev && s.players.length > prevPlayerCount) A.sfx.join();
+  prevPlayerCount = s.players.length;
+  // giliran berganti
+  if (s.turnEndsAt && (!prev || prev.turnEndsAt !== s.turnEndsAt)) turnStartAt = Date.now() + clockOffset;
+  if (s.phase === 'PLAYING' && s.turnPlayerId !== prevTurnId) {
+    if (me && s.turnPlayerId === me.id && prevTurnId !== null) setTimeout(() => { if (state.turnPlayerId === me.id) { banner('GILIRANMU', 'Lempar dadu!'); A.sfx.turn(); vibrate([40, 60, 40]); } }, 700);
+    prevTurnId = s.turnPlayerId;
+  }
+  // event dramatis (buka topeng / kartu) — antrikan, tampilkan setelah dadu berhenti
+  if (s.lastEvent && s.lastEvent.id !== seenEventId) {
+    if (seenEventId !== null && ['eliminated', 'killed', 'left'].includes(s.lastEvent.type)) fxQueue.push(s.lastEvent);
+    seenEventId = s.lastEvent.id;
+  }
+  A.setIntensity(s.phase === 'PLAYING' && s.players.filter(p => p.alive).length <= 2 ? 1 : 0);
+  render();
+  processFx();
+});
+socket.on('private', p => { priv = p; if (state) render(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden && !socket.connected) socket.connect(); });
+setTimeout(() => { if (!socket.connected) $('#conn').classList.remove('hidden'); }, 3000);
+
+// ---------- render ----------
+function render() {
+  if (!state || !me) return show('home');
+  if (state.phase === 'LOBBY') { renderLobby(); show('lobby'); }
+  else {
+    show('game');
+    if (!board) { try { initBoard(); } catch (e) { console.error(e); toast('Browser ini tidak mendukung WebGL/3D.', 'error'); } }
+    if (board) { board.myId = me.id; board.update(state, {}); if (introPending) { introPending = false; board.intro(); } }
+    renderGame();
+  }
+  const over = state.phase === 'GAME_OVER';
+  const busy = board && (board.rolling || fxBusy);
+  const showOver = over && !overlayClosed && !busy;
+  $('#overlay').classList.toggle('hidden', !showOver);
+  if (over && busy) setTimeout(render, 900);
+  if (showOver) renderOverlay();
+}
+
+function playerItem(p, opts = {}) {
+  const li = el('li', (p.alive ? '' : 'dead') + (p.id === me.id ? ' self' : ''));
+  const left = el('span', 'pname');
+  left.append(Home.avatar(p.name, p.avatarUrl));
+  const nm = el('span', 'pn-wrap');
+  const line = el('span', 'pn-line');
+  line.append(el('span', 'pn', p.name));
+  if (p.id === state.hostId) { const t = el('span', 'host-ic'); t.innerHTML = ICON.crown; t.title = 'Host'; t.append(el('span', 'sr-only', 'host')); line.append(t); }
+  if (p.id === me.id) line.append(el('span', 'you', 'kamu'));
+  nm.append(line);
+  // baris kedua: identitas akun, tamu, atau offline (bukan tumpukan badge)
+  const sub = el('small', 'pid');
+  if (!p.connected) { sub.classList.add('off'); sub.textContent = 'offline'; }
+  else if (p.guest) sub.textContent = 'tamu · tanpa poin';
+  else if (p.publicId) sub.textContent = '#' + p.publicId + (p.tier && p.tier.min > 0 && !opts.game ? ' · ' + p.tier.name : '');
+  if (sub.textContent) nm.append(sub);
+  left.append(nm);
+  li.append(left);
+  const right = el('span', 'pmeta');
+  if (opts.game) {
+    if (p.revealed) { const c = ch(p.revealed); right.append(el('span', 'revealed', c.name)); }
+    if (p.cards.length) right.append(el('span', 'cards', `${p.cards.length}/3 kartu`));
+    if (p.id === state.turnPlayerId) li.classList.add('turn');
+  }
+  li.append(right);
+  return li;
+}
+
+function renderLobby() {
+  $('#lobbyCode').textContent = state.code;
+  if (location.search !== `?room=${state.code}`) history.replaceState(null, '', `/?room=${state.code}`);
+  $('#lobbyCount').textContent = `${state.players.length}/${META.maxPlayers}`;
+  const ul = $('#lobbyPlayers');
+  const known = new Set([...ul.children].map(li => li.dataset.id));
+  ul.replaceChildren(...state.players.map(p => { const li = playerItem(p); li.dataset.id = p.id; if (!known.has(p.id)) li.classList.add('pop'); return li; }));
+  for (let i = state.players.length; i < Math.max(META.minPlayers, state.players.length); i++) ul.append(el('li', 'slot', 'Menunggu pemain…'));
+  const isHost = me.id === state.hostId, enough = state.players.length >= META.minPlayers;
+  renderVisRow(isHost);
+  $('#startBtn').classList.toggle('hidden', !isHost);
+  $('#startBtn').disabled = !enough;
+  $('#lobbyHint').textContent = !enough
+    ? `Butuh minimal ${META.minPlayers} pemain. Bagikan kode di atas!`
+    : isHost ? 'Bisa mulai kapan saja. Room menampung sampai 8 pemain.' : `Menunggu ${pname(state.hostId)} memulai…`;
+}
+
+function renderVisRow(isHost) {
+  const row = $('#visRow'), pub = state.visibility === 'public';
+  if (row.dataset.k === `${isHost}:${pub}`) return;
+  row.dataset.k = `${isHost}:${pub}`;
+  row.replaceChildren();
+  const badge = el('span', 'vis-badge ' + (pub ? 'pub' : 'priv'), pub ? 'Room publik · tampil di lobby' : 'Room privat · hanya lewat kode');
+  row.append(badge);
+  if (isHost) {
+    const b = el('button', 'link-btn', pub ? 'Jadikan privat' : 'Jadikan publik');
+    b.onclick = () => emit('set_visibility', { visibility: pub ? 'private' : 'public' }).then(r => r.ok && toast(pub ? 'Room sekarang privat' : 'Room sekarang tampil di lobby'));
+    row.append(b);
+  }
+}
+
+// ---------- 3D board ----------
+function initBoard() {
+  board = window.__board = new Board3D($('#board3d'), META, {
+    onFigure(id, room) {
+      const s = state; if (!s) return;
+      const myTurn = s.turnPlayerId === me.id && s.phase === 'PLAYING' && !board.rolling;
+      const c = ch(id);
+      if (myTurn && s.step === 'MOVE' && s.legalMoves.some(m => m.charId === id)) { selected = selected === id ? null : id; A.sfx.pick(); return renderGame(); }
+      if (myTurn && s.step === 'BLACK' && (priv.killTargets || []).includes(id)) {
+        if (killSel === id) { killSel = null; emit('kill', { targetId: id }); } else { killSel = id; A.sfx.pick(); vibrate(20); renderGame(); }
+        return;
+      }
+      toast(`${c.name} — di ${META.roomLabel[room] || ''}`);
+    },
+    onDragStart(id) { A.sfx.pick(); vibrate(15); if (selected !== id) { selected = id; renderGame(); } },
+    onDrop(id, room, spot) { A.sfx.land(); vibrate(25); emit('move', { charId: id, to: room, spot }); selected = null; renderGame(); },
+    onCinematicStart(ev) {
+      A.sfx.swoosh(1.4);
+      toast(`${pname(ev.by)} memindahkan ${ch(ev.charId).name}: ${META.roomLabel[ev.from]} → ${META.roomLabel[ev.to]}`);
+    },
+    onCinematicLand() { A.sfx.land(); },
+    onDragCancel(id, room) { if (room) toast(`${ch(id).name} tidak bisa ke ${META.roomLabel[room]}. Lepaskan di benua berbingkai hijau.`, 'error'); },
+    onRoom(room) {
+      if (!selected || !state) return;
+      if (state.legalMoves.some(m => m.charId === selected && m.to === room)) { A.sfx.land(); emit('move', { charId: selected, to: room }); selected = null; renderGame(); }
+      else toast('Tamu itu tidak bisa pindah ke benua tersebut.', 'error');
+    },
+    onDiceTap() { rollDice(); },
+    onHover() { A.sfx.hover(); },
+    onRollStart() { $('#rollBanner').classList.add('hidden'); A.sfx.diceShake(); renderGame(); },
+    onDiceBounce(strength) { A.sfx.dice(strength); },
+    onRollEnd() {
+      const b = $('#rollBanner'), d = state && state.die;
+      if (d) { b.textContent = DIE_LABEL[d]; b.className = `roll-banner die-${d}`; clearTimeout(b.t); b.t = setTimeout(() => b.classList.add('hidden'), 1700); }
+      if (d === 'hitam') vibrate([30, 40, 30]);
+      renderGame(); processFx();
+    },
+  });
+}
+function rollDice() {
+  if (!state || state.turnPlayerId !== me.id || state.step !== 'ROLL' || (board && board.rolling)) return;
+  vibrate(20); emit('roll');
+}
+$('#camBtn').onclick = () => board && board.resetCamera();
+$('#logBtn').onclick = () => $('#drawer').classList.toggle('hidden');
+$('#drawerClose').onclick = () => $('#drawer').classList.add('hidden');
+
+// tombol "Kurangi animasi" (pilihan pemain, disimpan di perangkat)
+const rmToggle = $('#reduceMotion');
+const applyRM = on => { document.body.classList.toggle('reduce-motion', on); setReducedMotion(on); };
+try { rmToggle.checked = localStorage.getItem('pt-reduce-motion') === '1'; } catch {}
+applyRM(rmToggle.checked);
+rmToggle.addEventListener('change', () => { try { localStorage.setItem('pt-reduce-motion', rmToggle.checked ? '1' : '0'); } catch {} applyRM(rmToggle.checked); });
+
+function chip(p) {
+  const c = el('div', 'chip');
+  if (p.id === state.turnPlayerId) c.classList.add('turn');
+  if (!p.alive) c.classList.add('dead');
+  if (p.revealed) { const im = el('img', 'chip-av'); im.src = getPortrait(p.revealed); im.alt = ch(p.revealed).name; c.append(im); }
+  else if (p.avatarUrl) c.append(Home.avatar(p.name, p.avatarUrl, 'chip-av initial'));
+  else c.append(initialAvatar(p.name, 'chip-av initial'));
+  c.append(el('span', 'chip-name', p.name + (p.id === me.id ? ' (kamu)' : '')));
+  if (!p.connected) c.append(el('span', 'chip-off', 'offline'));
+  if (p.cards.length) { const cc = el('span', 'chip-cards'); cc.innerHTML = ICON.card; cc.append(String(p.cards.length)); cc.title = `${p.cards.length} kartu`; c.append(cc); }
+  return c;
+}
+
+function renderGame() {
+  const s = state; if (!s || !me) return;
+  const rolling = board && board.rolling;
+  const myTurn = s.turnPlayerId === me.id && s.phase === 'PLAYING';
+  const ti = $('#turnInfo'); ti.replaceChildren();
+  if (s.phase === 'GAME_OVER') ti.textContent = `Selesai — ${s.winnerId ? pname(s.winnerId) + ' menang!' : 'tanpa pemenang'}`;
+  else { ti.append(el('b', null, myTurn ? 'Giliranmu!' : `Giliran ${pname(s.turnPlayerId)}`)); ti.classList.toggle('mine', myTurn); }
+  $('#playerStrip').replaceChildren(...s.players.map(chip));
+
+  const myChar = priv.charId && ch(priv.charId);
+  const idBtn = $('#identityBtn');
+  idBtn.setAttribute('aria-pressed', String(showId));
+  idBtn.classList.toggle('dead', !me.alive);
+  const open = myChar && (showId || !me.alive);
+  idBtn.classList.toggle('open', !!open);
+  const av = $('#idAvatar');
+  if (open) { const src = getPortrait(myChar.id); if (av.getAttribute('src') !== src) av.src = src; av.alt = `Foto ${myChar.name}`; }
+  $('#idName').textContent = open ? myChar.name.toUpperCase() + (me.alive ? '' : ' · TERSINGKIR') : '';
+  $('#identityText').textContent = !myChar ? '…' : open ? myChar.bio : 'Ketuk untuk lihat identitasmu';
+  $('#idHint').textContent = !myChar ? '' : !me.alive ? 'Topengmu sudah terbuka.' : showId ? 'Ketuk untuk sembunyikan · ◆ di papan = kamu' : 'Jaga layarmu dari intipan!';
+
+  const moves = s.legalMoves || [];
+  const ui = {
+    movable: myTurn && s.step === 'MOVE' ? [...new Set(moves.map(m => m.charId))] : [],
+    dests: selected ? moves.filter(m => m.charId === selected).map(m => m.to) : [],
+    targets: myTurn && s.step === 'BLACK' ? (priv.killTargets || []) : [],
+    selected, killSel,
+    mine: showId && me.alive ? priv.charId : null,
+    canRoll: myTurn && s.step === 'ROLL' && me.alive,
+  };
+  if (board) board.setUI(ui);
+
+  const ap = $('#actionPanel'); ap.replaceChildren();
+  ap.classList.toggle('mine', myTurn && !rolling && s.phase === 'PLAYING');
+  const msg = el('div', 'action-msg');
+  if (s.phase === 'GAME_OVER') msg.textContent = 'Permainan selesai.';
+  else if (rolling) msg.textContent = 'Dadu sedang bergulir…';
+  else if (!me.alive) msg.textContent = 'Kamu tersingkir. Tetap tonton, tapi jangan bocorkan identitas siapa pun!';
+  else if (!myTurn) msg.textContent = s.step === 'ROLL' ? `${pname(s.turnPlayerId)} akan melempar dadu…` : s.step === 'MOVE' ? `${pname(s.turnPlayerId)} sedang memindahkan tamu…` : `${pname(s.turnPlayerId)} dapat HITAM dan sedang memutuskan…`;
+  else if (s.step === 'ROLL') {
+    msg.textContent = 'Lempar dadu: ketuk tombol atau dadu di meja.';
+    const b = btnWithIcon('btn primary roll', ICON.dice, 'Lempar Dadu'); b.onclick = () => { b.disabled = true; rollDice(); }; ap.append(b);
+  } else if (s.step === 'MOVE') {
+    msg.textContent = selected
+      ? `Geser ${ch(selected).name} ke benua berbingkai hijau (atau ketuk benuanya).`
+      : `${DIE_LABEL[s.die]}: pindahkan satu tamu MASUK ke / KELUAR dari ${META.roomLabel[s.die]}. Tahan bidak bercincin emas, lalu geser.`;
+  } else if (s.step === 'BLACK') {
+    msg.textContent = killSel ? `Ketuk ${ch(killSel).name} sekali lagi untuk membuka topengnya.` : 'HITAM! Ketuk bidak bercincin merah (satu benua denganmu) untuk membuka topengnya' + (priv.canDraw ? ', atau ambil kartu tamu biasa.' : '. Kamu wajib membuka topeng seseorang.');
+    if (priv.canDraw) { const b = btnWithIcon('btn', ICON.card, `Ambil kartu tamu (${me.cards.length}/3)`); b.onclick = () => emit('draw'); ap.append(b); }
+  }
+  ap.prepend(msg);
+
+  $('#gamePlayers').replaceChildren(...s.players.map(p => playerItem(p, { game: true })));
+  $('#log').replaceChildren(...[...s.log].reverse().slice(0, 40).map(l => el('li', null, l.text)));
+}
+
+// ---------- momen dramatis ----------
+function banner(title, sub) {
+  const b = el('div', 'banner');
+  b.append(el('div', 'banner-title', title)); if (sub) b.append(el('div', 'banner-sub', sub));
+  $('#fx').append(b);
+  afterPaint(() => { setTimeout(() => b.classList.add('out'), 1500); setTimeout(() => b.remove(), 1900); });
+}
+// jalankan setelah elemen benar-benar tergambar (aman walau perangkat sedang sibuk)
+const afterPaint = fn => requestAnimationFrame(() => requestAnimationFrame(fn));
+let fxBusy = false;
+function processFx() {
+  if (fxBusy || !fxQueue.length || (board && board.rolling)) return;
+  const ev = fxQueue.shift(); fxBusy = true;
+  const done = () => { fxBusy = false; processFx(); if (state && state.phase === 'GAME_OVER') render(); };
+  showReveal(ev, done);
+}
+function showReveal(ev, done) {
+  const c = ch(ev.charId); if (!c) return done();
+  const victim = ev.victim && state.players.find(p => p.id === ev.victim);
+  const isMe = victim && victim.id === me.id;
+  const card = el('div', 'reveal ' + ev.type);
+  card.setAttribute('role', 'dialog'); card.setAttribute('aria-label', 'Pengungkapan');
+  const inner = el('div', 'reveal-inner');
+  const back = el('div', 'reveal-face back'); back.innerHTML = MASK_SVG;
+  const front = el('div', 'reveal-face front');
+  const pic = el('div', 'rv-portrait'); const im = el('img'); im.src = getPortrait(c.id); im.alt = `Foto ${c.name}`; pic.append(im);
+  let kicker, title, line;
+  if (ev.type === 'eliminated') {
+    kicker = ev.self ? 'SENDIRIAN!' : 'TOPENG TERBUKA!';
+    title = isMe ? 'Kamu tersingkir' : `${victim ? victim.name : '?'} tersingkir`;
+    line = ev.self ? `Ketahuan sendirian. Ternyata dia adalah` : `Dibuka oleh ${pname(ev.by)}. Ternyata dia adalah`;
+    if (isMe) { A.sfx.lose(); vibrate([80, 60, 160]); } else { A.sfx.unmask(); vibrate(60); }
+  } else if (ev.type === 'killed') {
+    kicker = 'HANYA TAMU BIASA'; title = 'Salah sasaran!'; line = `${pname(ev.by)} membuka topeng`; A.sfx.poof();
+  } else {
+    kicker = 'TAMU PULANG'; title = `${c.name} pulang dari pesta`; line = `Kartu diambil oleh ${pname(ev.by)}:`; A.sfx.card();
+  }
+  front.append(el('p', 'rv-kicker', kicker), pic, el('h3', 'rv-title', title), el('p', 'rv-line', line), el('p', 'rv-role', c.name.toUpperCase()));
+  if (ev.type === 'eliminated') front.append(el('p', 'rv-bio', c.bio));
+  front.append(el('p', 'rv-hint', 'Ketuk untuk lanjut'));
+  inner.append(back, front); card.append(inner);
+  $('#fx').append(card);
+  afterPaint(() => { card.classList.add('show'); setTimeout(() => card.classList.add('flip'), 380); });
+  let closed = false;
+  const close = () => { if (closed) return; closed = true; card.classList.add('out'); setTimeout(() => { card.remove(); done(); }, 280); };
+  card.addEventListener('click', close);
+  afterPaint(() => setTimeout(close, ev.type === 'eliminated' ? 4200 : 3000));
+}
+
+// ---------- layar akhir + konfeti ----------
+let celebrated = false, confettiRAF = null;
+function renderOverlay() {
+  const s = state, w = s.players.find(p => p.id === s.winnerId);
+  const wc = w && ch(w.revealed);
+  $('#winAvatar').src = wc ? getPortrait(wc.id) : ''; $('#winAvatar').alt = wc ? `Foto ${wc.name}` : '';
+  $('#winnerText').textContent = w ? (w.id === me.id ? 'Kamu menang!' : `${w.name} menang!`) : 'Tidak ada pemenang';
+  $('#winnerSub').textContent = wc ? `Bertahan sampai akhir sebagai ${wc.name.toUpperCase()}.` : '';
+  const order = s.standings || s.players.map((p, i) => ({ id: p.id, placement: i + 1, points: null }));
+  $('#revealList').replaceChildren(...order.map(st => {
+    const p = s.players.find(x => x.id === st.id); if (!p) return el('li');
+    const li = el('li', (p.id === s.winnerId ? 'turn' : '') + (p.id === me.id ? ' mine' : ''));
+    const c = ch(p.revealed);
+    const who = el('span', 'pname');
+    who.append(el('span', `place p${Math.min(st.placement, 4)}`, String(st.placement)));
+    if (c) { const im = el('img', 'mini-avatar'); im.src = getPortrait(c.id); im.alt = `Foto ${c.name}`; who.append(im); }
+    const nm = el('span', 'pn-wrap'); nm.append(el('span', 'pn', p.name), el('small', 'pid', c ? c.name : '?')); who.append(nm);
+    li.append(who);
+    if (st.points != null) li.append(el('span', 'st-pts' + (p.guest ? ' guest' : ''), `+${st.points}`));
+    return li;
+  }));
+  Home.renderReward(s, me.id);
+  $('#againBtn').classList.toggle('hidden', me.id !== s.hostId);
+  if (!celebrated) { celebrated = true; A.sfx.win(); if (w && w.id === me.id) vibrate([60, 40, 60, 40, 200]); startConfetti(); }
+}
+function startConfetti() {
+  if (document.body.classList.contains('reduce-motion')) return;
+  const cv = $('#confetti'), g = cv.getContext('2d');
+  const fit = () => { cv.width = innerWidth * devicePixelRatio; cv.height = innerHeight * devicePixelRatio; };
+  fit();
+  const colors = ['#e6c36f', '#c9a14a', '#ef4444', '#2f63b8', '#2f8f57', '#f3ead7', '#d9a62e'];
+  const P = Array.from({ length: 160 }, () => ({ x: Math.random() * cv.width, y: -Math.random() * cv.height, w: 6 + Math.random() * 8, h: 10 + Math.random() * 10, vy: 2 + Math.random() * 3, vx: -1 + Math.random() * 2, r: Math.random() * 6, vr: -0.1 + Math.random() * 0.2, c: colors[Math.floor(Math.random() * colors.length)] }));
+  const t0 = performance.now();
+  const loop = t => {
+    g.clearRect(0, 0, cv.width, cv.height);
+    const fade = Math.max(0, 1 - (t - t0 - 4500) / 1500);
+    for (const p of P) {
+      p.y += p.vy * devicePixelRatio; p.x += (p.vx + Math.sin((t / 600) + p.r) * 0.8) * devicePixelRatio; p.r += p.vr;
+      if (p.y > cv.height + 20 && fade > 0.9) { p.y = -20; p.x = Math.random() * cv.width; }
+      g.save(); g.globalAlpha = fade; g.translate(p.x, p.y); g.rotate(p.r); g.fillStyle = p.c;
+      g.fillRect(-p.w / 2 * devicePixelRatio, -p.h / 2 * devicePixelRatio, p.w * devicePixelRatio, p.h * Math.abs(Math.cos(p.r * 2)) * devicePixelRatio); g.restore();
+    }
+    confettiRAF = fade > 0 ? requestAnimationFrame(loop) : null;
+  };
+  cancelAnimationFrame(confettiRAF); confettiRAF = requestAnimationFrame(loop);
+}
+function stopConfetti() { cancelAnimationFrame(confettiRAF); confettiRAF = null; const cv = $('#confetti'); cv.getContext('2d').clearRect(0, 0, cv.width, cv.height); }
+
+// ---------- timer cincin ----------
+const RING = 2 * Math.PI * 15.5;
+setInterval(() => {
+  const t = $('#timer');
+  if (!state || state.phase !== 'PLAYING' || !state.turnEndsAt) { t.classList.add('hidden'); return; }
+  t.classList.remove('hidden');
+  const nowS = Date.now() + clockOffset;
+  const left = Math.max(0, state.turnEndsAt - nowS), total = Math.max(1000, state.turnEndsAt - turnStartAt);
+  const sec = Math.ceil(left / 1000);
+  $('#timerNum').textContent = sec;
+  $('#timerRing').style.strokeDasharray = `${RING}`;
+  $('#timerRing').style.strokeDashoffset = `${RING * (1 - Math.min(1, left / total))}`;
+  t.classList.toggle('urgent', sec <= 10);
+  t.setAttribute('aria-label', `Sisa waktu ${sec} detik`);
+  if (me && state.turnPlayerId === me.id && sec <= 5 && sec > 0 && sec !== lastTick) { lastTick = sec; A.sfx.tick(sec <= 3); }
+}, 200);
+
+// ---------- boot ----------
+const fontsReady = Promise.race([
+  Promise.all(['700 64px "Playfair Display"', '400 16px Inter', '600 16px Inter'].map(f => document.fonts.load(f).catch(() => null))),
+  new Promise(r => setTimeout(r, 2500)),
+]);
+Promise.all([fetch('/meta').then(r => r.json()), fetch('/config').then(r => r.json()), fontsReady]).then(async ([m, config]) => {
+  META = m; initPortraits(META.characters);
+  try { buildCast(); } catch (e) { console.warn('cast', e); }
+  Home.initHome(config, { socket, emit, toast, sfx: A.sfx, onJoined });
+  await Auth.initAuth(config, onAuthToken);
+  authToken = await Auth.currentToken();
+  socket.connect();
+}).catch(e => { console.error(e); $('#conn').classList.remove('hidden'); });
+
+// pengujian otomatis: ?debug membuka akses ke efek (tidak dipakai saat bermain)
+if (new URLSearchParams(location.search).has('debug')) window.__audio = A, window.__home = Home; window.__fx = { showReveal: (ev, cb) => showReveal(ev, cb || (() => {})), banner, startConfetti,
+  showWin() { state = { ...state, phase: 'GAME_OVER', winnerId: me.id, players: state.players.map((p, i) => ({ ...p, alive: p.id === me.id, revealed: p.revealed || priv.charId && (p.id === me.id ? priv.charId : META.characters[i + 3].id) })) }; overlayClosed = false; celebrated = false; render(); } };

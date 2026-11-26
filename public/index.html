@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b0e13">
+  <link rel="preload" href="/vendor/fonts/playfair-display/files/playfair-display-latin-700-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/vendor/fonts/inter/files/inter-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <title>Pesta Topeng — game deduksi bertopeng</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="conn" class="conn hidden">Menghubungkan ke server… (server gratis bisa butuh ±1 menit untuk bangun)</div>
+
+  <!-- HOME -->
+  <section id="home" class="screen">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Pesta Topeng — beranda"><svg class="mask-svg" viewBox="0 0 64 40" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M2 7C10 1 22 2 32 10C42 2 54 1 62 7C64 22 56 34 44 34C38 34 35 27 32 27C29 27 26 34 20 34C8 34 0 22 2 7ZM12 17C14 13 21 13 25 17C21 21 15 21 12 17ZM39 17C43 13 50 13 52 17C49 21 43 21 39 17Z"/></svg><span>Pesta Topeng</span></a>
+      <div id="accountArea" class="account-area"></div>
+    </header>
+
+    <div class="home-grid">
+    <div class="home-intro">
+    <div class="hero">
+      <h1>Pesta Topeng</h1>
+      <p class="sub">Semua tamu bertopeng, dan salah satunya kamu. Buka topeng lawan sebelum mereka menemukanmu.</p>
+      <ul class="facts" aria-label="Info permainan">
+        <li>3–8 pemain</li><li>±15 menit</li><li>Langsung di browser</li>
+      </ul>
+    </div>
+    <div class="cast" aria-label="Para tamu pesta"><div id="castTrack" class="cast-track"></div></div>
+
+    <!-- kartu masuk (muncul saat belum login) -->
+    <div id="authCard" class="auth-card hidden">
+      <p class="auth-title">Simpan poinmu</p>
+      <p class="auth-sub">Masuk dengan Google untuk dapat username, ID unik, dan tempat di papan peringkat.</p>
+      <button id="googleBtn" class="btn google"><svg class="g-logo" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2c-2 1.5-4.5 2.4-7.2 2.4-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg><span id="googleBtnText">Masuk dengan Google</span></button>
+      <p id="localNote" class="auth-note hidden">Login Google belum diaktifkan di server ini, jadi akun disimpan di perangkat ini.</p>
+      <button id="guestToggle" class="link-btn" aria-expanded="false" aria-controls="guestBox">Main sebagai tamu</button>
+      <div id="guestBox" class="guest-box hidden">
+        <label class="field" for="nameInput">Nama tamu</label>
+        <input id="nameInput" maxlength="16" autocomplete="nickname" placeholder="mis. Rina" aria-describedby="nameHelp">
+        <small id="nameHelp" class="help">Tamu bisa ikut main, tapi poinnya tidak disimpan.</small>
+      </div>
+    </div>
+
+      <ol class="steps only-desk" aria-label="Cara main singkat">
+        <li><b>Rahasiakan siapa kamu.</b> Kamu diam-diam adalah salah satu dari 20 tamu bertopeng di 5 benua.</li>
+        <li><b>Lempar dadu benua.</b> Tahan lalu geser satu tamu mana pun masuk atau keluar dari benua itu.</li>
+        <li><b>Dadu hitam?</b> Buka topeng tamu yang satu benua denganmu. Kalau kamu sendirian, topengmu yang terbuka.</li>
+        <li><b>Bertahan sampai akhir.</b> Topeng terakhir yang tersisa menang dan dapat poin terbanyak.</li>
+      </ol>
+    </div><!-- /home-intro -->
+
+    <div class="home-main">
+    <div class="tabs" role="tablist" aria-label="Menu">
+      <button role="tab" id="tab-play" aria-controls="panel-play" aria-selected="true" class="tab"><svg class="ic sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.2" fill="currentColor"/><circle cx="15.5" cy="15.5" r="1.2" fill="currentColor"/></svg>Main</button>
+      <button role="tab" id="tab-rank" aria-controls="panel-rank" aria-selected="false" class="tab" tabindex="-1"><svg class="ic sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg>Peringkat</button>
+      <button role="tab" id="tab-me" aria-controls="panel-me" aria-selected="false" class="tab" tabindex="-1"><svg class="ic sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Profil</button>
+      <span class="tab-ink" aria-hidden="true"></span>
+    </div>
+
+    <!-- PANEL: MAIN -->
+    <div id="panel-play" role="tabpanel" aria-labelledby="tab-play" class="panel">
+      <div class="create-card">
+        <div class="cc-head">
+          <h2>Buat room</h2>
+          <div class="seg" role="radiogroup" aria-label="Jenis room">
+            <button role="radio" aria-checked="true" data-vis="public" class="seg-btn"><svg class="ic sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>Publik</button>
+            <button role="radio" aria-checked="false" data-vis="private" class="seg-btn" tabindex="-1"><svg class="ic sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Privat</button>
+            <span class="seg-ink" aria-hidden="true"></span>
+          </div>
+        </div>
+        <p id="visHelp" class="help">Tampil di daftar room publik.</p>
+        <button id="createBtn" class="btn primary">Buat Room Baru</button>
+        <div class="divider"><span>punya kode?</span></div>
+        <div class="row">
+          <label class="sr-only" for="codeInput">Kode room</label>
+          <input id="codeInput" maxlength="4" placeholder="KODE" autocapitalize="characters" autocomplete="off" class="code-input">
+          <button id="joinBtn" class="btn">Gabung</button>
+        </div>
+        <p id="homeErr" class="err" role="alert"></p>
+      </div>
+
+      <div class="rooms-head">
+        <h2>Room publik</h2>
+        <span class="live"><span class="live-dot" aria-hidden="true"></span>Diperbarui langsung</span>
+      </div>
+      <p id="roomsStatus" class="sr-only" role="status" aria-atomic="true"></p>
+      <ul id="roomList" class="room-list" aria-label="Daftar room publik"></ul>
+    </div>
+
+    <!-- PANEL: PERINGKAT -->
+    <div id="panel-rank" role="tabpanel" aria-labelledby="tab-rank" class="panel hidden">
+      <div id="podium" class="podium" aria-label="Tiga teratas"></div>
+      <ol id="lbList" class="lb-list" aria-label="Papan peringkat"></ol>
+      <div id="lbMe" class="lb-me hidden"></div>
+      <details class="howto points-howto">
+        <summary>Cara mendapat poin</summary>
+        <ul id="pointRules" class="rules"></ul>
+        <div class="table-wrap"><table id="pointTable" class="pt-table"></table></div>
+        <p class="help">Peringkat ditentukan dari total poin. Seri dipecah oleh jumlah kemenangan. Tamu tidak mendapat poin.</p>
+        <ul id="tierList" class="tier-list"></ul>
+      </details>
+    </div>
+
+    <!-- PANEL: PROFIL -->
+    <div id="panel-me" role="tabpanel" aria-labelledby="tab-me" class="panel hidden">
+      <div id="profileView"></div>
+    </div>
+
+    <details class="howto rules-full">
+      <summary>Cara main (1 menit)</summary>
+      <ol>
+        <li>Ada 20 tamu bertopeng berkostum profesi (koki, polisi, dalang, astronot, dan lainnya) yang tersebar di 5 benua: <b>Asia</b> (hijau), <b>Afrika</b> (kuning), <b>Eropa</b> (biru), <b>Amerika</b> (merah), dan <b>Antartika</b> (putih). Kamu diam-diam adalah salah satunya.</li>
+        <li>Giliranmu: lempar dadu. <b>Benua</b> → pindahkan tamu mana saja <b>masuk ke</b> atau <b>keluar dari</b> benua itu (ke benua yang terhubung jembatan). Caranya: <b>tahan bidak, lalu geser</b> ke benua tujuan.</li>
+        <li><b>Hitam</b> → buka topeng satu tamu yang <b>satu benua dengan karaktermu</b>, atau ambil kartu tamu biasa (maks 3) untuk menyuruhnya pulang.</li>
+        <li>Kalau dadu hitam dan karaktermu <b>sendirian</b> di benuanya, topengmu sendiri terbuka. Hati-hati!</li>
+        <li>Pemain terakhir yang masih bertopeng menang. Semakin lama bertahan, semakin banyak poinmu.</li>
+      </ol>
+    </details>
+    </div><!-- /home-main -->
+    </div><!-- /home-grid -->
+  </section>
+
+  <!-- DIALOG USERNAME -->
+  <div id="nameDialog" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="ndTitle">
+    <form id="nameForm" class="modal-card" novalidate>
+      <div id="ndAvatar" class="nd-avatar" aria-hidden="true"></div>
+      <h2 id="ndTitle">Pilih username</h2>
+      <p class="help center" id="ndSub">Nama ini tampil di room dan papan peringkat.</p>
+      <label class="field" for="usernameInput">Username</label>
+      <div class="input-wrap">
+        <input id="usernameInput" maxlength="16" autocomplete="username" spellcheck="false" autocapitalize="off" aria-describedby="usernameMsg" required>
+        <span id="usernameState" class="input-state" aria-hidden="true"></span>
+      </div>
+      <p id="usernameMsg" class="help" aria-live="polite">3–16 karakter: huruf, angka, atau garis bawah (_).</p>
+      <button id="usernameSave" class="btn primary" type="submit">Simpan &amp; dapatkan ID</button>
+      <button id="usernameCancel" class="btn ghost" type="button">Nanti saja</button>
+    </form>
+    <div id="idReveal" class="modal-card id-reveal hidden" aria-live="polite">
+      <p class="eyebrow">Selamat datang di pesta</p>
+      <h2 id="irName"></h2>
+      <p class="help">ID unik kamu</p>
+      <div id="irCode" class="ir-code" aria-label=""></div>
+      <p class="help center">Bagikan ID ini supaya teman bisa menemukanmu di papan peringkat.</p>
+      <button id="irDone" class="btn primary">Mulai bermain</button>
+    </div>
+  </div>
+
+  <!-- LOBBY -->
+  <section id="lobby" class="screen hidden">
+    <p class="muted center">Kode room</p>
+    <div id="lobbyCode" class="big-code"></div>
+    <div id="visRow" class="vis-row"></div>
+    <button id="shareBtn" class="btn small"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/><path d="m16 6-4-4-4 4"/><path d="M12 2v13"/></svg><span>Bagikan undangan</span></button>
+    <h2>Pemain <span id="lobbyCount" class="muted"></span></h2>
+    <ul id="lobbyPlayers" class="plist"></ul>
+    <button id="startBtn" class="btn primary">Mulai Pesta</button>
+    <p id="lobbyHint" class="muted center"></p>
+    <p id="lobbyErr" class="err"></p>
+    <button id="leaveBtn" class="btn ghost">Keluar room</button>
+  </section>
+
+  <!-- GAME (3D) -->
+  <section id="game" class="screen game3d hidden">
+    <header class="hud-top">
+      <div id="turnInfo" class="turn-info"></div>
+      <div class="hud-actions">
+        <span id="timer" class="timer" aria-live="off"><svg viewBox="0 0 36 36" aria-hidden="true"><circle class="tr-bg" cx="18" cy="18" r="15.5"/><circle id="timerRing" class="tr-fg" cx="18" cy="18" r="15.5"/></svg><span id="timerNum"></span></span>
+        <button id="musicBtn" class="icon-btn" aria-label="Musik latar" aria-pressed="true" title="Musik latar"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/><path class="slash" d="M3 3l18 18"/></svg></button>
+        <button id="sfxBtn" class="icon-btn" aria-label="Efek suara" aria-pressed="true" title="Efek suara"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path class="wave" d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/><path class="slash" d="M3 3l18 18"/></svg></button>
+        <button id="camBtn" class="icon-btn" aria-label="Atur ulang kamera" title="Atur ulang kamera"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></button>
+        <button id="logBtn" class="icon-btn" aria-label="Catatan pesta" title="Catatan pesta"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></button>
+      </div>
+    </header>
+    <div id="playerStrip" class="player-strip"></div>
+    <div id="board3d" class="board3d">
+      <div id="rollBanner" class="roll-banner hidden"></div>
+    </div>
+    <div id="fx" class="fx" aria-live="polite"></div>
+    <div class="sheet">
+      <button id="identityBtn" class="identity" aria-pressed="false">
+        <span class="id-avatar" aria-hidden="true"><img id="idAvatar" alt=""><span class="mask"><svg class="mask-svg" viewBox="0 0 64 40" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M2 7C10 1 22 2 32 10C42 2 54 1 62 7C64 22 56 34 44 34C38 34 35 27 32 27C29 27 26 34 20 34C8 34 0 22 2 7ZM12 17C14 13 21 13 25 17C21 21 15 21 12 17ZM39 17C43 13 50 13 52 17C49 21 43 21 39 17Z"/></svg></span></span>
+        <span class="id-body"><span id="idName" class="id-name"></span><span id="identityText" class="id-bio">Ketuk untuk lihat identitasmu</span><span id="idHint" class="id-hint"></span></span>
+      </button>
+      <div id="actionPanel" class="action-panel"></div>
+    </div>
+    <aside id="drawer" class="drawer hidden">
+      <div class="drawer-head"><b>Catatan pesta</b><button id="drawerClose" class="icon-btn" aria-label="Tutup"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+      <label class="setting"><input type="checkbox" id="reduceMotion"><span>Kurangi animasi</span><small>Matikan sinematik, lompatan bidak & putaran dadu</small></label>
+      <ul id="gamePlayers" class="plist compact"></ul>
+      <ol id="log" class="log"></ol>
+    </aside>
+  </section>
+
+  <!-- GAME OVER -->
+  <div id="overlay" class="overlay hidden">
+    <canvas id="confetti" class="confetti" aria-hidden="true"></canvas>
+    <div class="card win-card">
+      <p class="eyebrow">Pesta selesai</p>
+      <div class="win-portrait"><img id="winAvatar" alt=""><span class="crown"><svg class="ic crown-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 18h20l-2-11-5 5-3-7-3 7-5-5z"/></svg></span></div>
+      <h2 id="winnerText"></h2>
+      <p id="winnerSub" class="win-sub"></p>
+      <div id="rewardBox" class="reward-box hidden" aria-live="polite"></div>
+      <ul id="revealList" class="plist compact reveal-list standings"></ul>
+      <button id="againBtn" class="btn primary">Main Lagi</button>
+      <div class="over-actions">
+        <button id="closeOverlay" class="btn ghost">Lihat papan</button>
+        <button id="homeBtn" class="btn ghost">Ke beranda</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden" role="status"></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script type="importmap">
+  { "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+  </script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
