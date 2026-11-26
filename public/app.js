@@ -139,7 +139,12 @@ socket.on('state', s => {
   if (s.phase !== 'PLAYING' || s.step !== 'MOVE') selected = null;
   if (s.step !== 'BLACK') killSel = null;
   if (prevPhase !== 'GAME_OVER' && s.phase === 'GAME_OVER') { overlayClosed = false; celebrated = false; }
-  if (s.phase === 'PLAYING' && prevPhase !== 'PLAYING') { showId = false; if (prevPhase === 'LOBBY') { introPending = true; A.sfx.start(); setTimeout(() => banner('PESTA DIMULAI', 'Temukan topeng lawan!'), 50); } }
+  if (s.phase === 'ORDER' && prevPhase === 'LOBBY') { showId = false; introPending = true; A.sfx.start(); orderSeen = {}; orderDoneShown = false; orderFinishing = false; clearTimeout(orderHideT); orderHideT = null; }
+  if (s.phase === 'PLAYING' && prevPhase !== 'PLAYING') {
+    showId = false;
+    if (prevPhase === 'LOBBY') { introPending = true; A.sfx.start(); setTimeout(() => banner('PESTA DIMULAI', 'Temukan topeng lawan!'), 50); }
+    if (prevPhase === 'ORDER') showOrderDone();
+  }
   if (s.phase === 'LOBBY' && prevPhase === 'GAME_OVER') { stopConfetti(); Home.clearReward(); }
   if (s.phase === 'PLAYING' && prevPhase !== 'PLAYING') Home.clearReward();
   // pemain baru bergabung di lobby
@@ -166,6 +171,76 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden && !s
 setTimeout(() => { if (!socket.connected) $('#conn').classList.remove('hidden'); }, 3000);
 
 // ---------- render ----------
+// ---------- lempar 2 dadu: urutan giliran ----------
+let orderSeen = {}, orderDoneShown = false, orderHideT = null, myOrderRolling = false, orderFinishing = false;
+const PIPS = { 1: [[1, 1]], 2: [[0, 0], [2, 2]], 3: [[0, 0], [1, 1], [2, 2]], 4: [[0, 0], [2, 0], [0, 2], [2, 2]], 5: [[0, 0], [2, 0], [1, 1], [0, 2], [2, 2]], 6: [[0, 0], [2, 0], [0, 1], [2, 1], [0, 2], [2, 2]] };
+function dieFace(n) {
+  const d = el('span', 'pip-die'); d.dataset.n = n;
+  d.innerHTML = '<svg viewBox="0 0 30 30" aria-hidden="true"><rect x="1" y="1" width="28" height="28" rx="7"/>' + (PIPS[n] || []).map(([x, y]) => `<circle cx="${7.5 + x * 7.5}" cy="${7.5 + y * 7.5}" r="2.7"/>`).join('') + '</svg>';
+  return d;
+}
+function tumble(wrap, final, onDone) { // animasi dadu berputar lalu berhenti di angka dari server
+  wrap.classList.add('rolling');
+  let n = 0;
+  const iv = setInterval(() => { wrap.replaceChildren(dieFace(1 + Math.floor(Math.random() * 6)), dieFace(1 + Math.floor(Math.random() * 6))); if (++n % 2) A.sfx.diceShake && A.sfx.diceShake(); }, 90);
+  setTimeout(() => { clearInterval(iv); wrap.classList.remove('rolling'); wrap.replaceChildren(dieFace(final[0]), dieFace(final[1])); A.sfx.dice && A.sfx.dice(); onDone && onDone(); }, document.body.classList.contains('reduce-motion') ? 150 : 750);
+}
+function renderOrder() {
+  const panel = $('#orderPanel'), s = state;
+  const finishing = orderFinishing && s && s.phase !== 'ORDER'; // lemparan terakhir masuk, server sudah PLAYING
+  if (!s || !s.order || (s.phase !== 'ORDER' && !finishing && !orderHideT)) { if (!orderHideT) panel.classList.add('hidden'); return; }
+  if (s.phase !== 'ORDER' && !finishing) return; // daftar akhir sedang tampil
+  if (finishing && panel.classList.contains('done')) return;
+  panel.classList.remove('hidden'); panel.classList.remove('done');
+  const o = s.order, domIdx = id => [...$('#opList').children].findIndex(li => li.dataset.id === id);
+  let alive = s.players.filter(p => p.alive);
+  if (finishing) alive = alive.filter(p => o.last[p.id]).sort((a, b) => domIdx(a.id) - domIdx(b.id)); // jangan lompat urutan dulu
+  $('#opKicker').textContent = o.round > 1 ? `LEMPAR ULANG · RONDE ${o.round}` : 'URUTAN GILIRAN';
+  $('#opTitle').textContent = o.round > 1 ? 'Seri! Lempar lagi' : 'Siapa jalan duluan?';
+  $('#opSub').textContent = o.round > 1 ? 'Hanya pemain yang seri yang melempar ulang.' : 'Semua pemain melempar 2 dadu. Total tertinggi jalan pertama.';
+  const list = $('#opList'); const rows = new Map([...list.children].map(li => [li.dataset.id, li]));
+  list.replaceChildren(...alive.map(p => {
+    const li = rows.get(p.id) || el('li'); li.dataset.id = p.id; li.className = 'op-row' + (p.id === me.id ? ' me' : '') + (o.pending.includes(p.id) ? ' waiting' : '');
+    const last = o.last[p.id], key = last ? `${p.id}:${last.round}` : null;
+    if (!li.firstChild) {
+      const who = el('span', 'op-who'); who.append(Home.avatar(p.name, p.avatarUrl, 'p-avatar sm'), el('b', null, p.name + (p.id === me.id ? ' (kamu)' : '')));
+      li.append(who, el('span', 'op-dice'), el('span', 'op-total'));
+    }
+    const dice = li.querySelector('.op-dice'), tot = li.querySelector('.op-total');
+    if (o.pending.includes(p.id)) {
+      if (!dice.classList.contains('rolling')) { dice.replaceChildren(el('span', 'op-wait', p.id === me.id ? 'giliranmu' : 'menunggu…')); tot.textContent = ''; }
+    } else if (last && orderSeen[p.id] !== key) {
+      orderSeen[p.id] = key;
+      tumble(dice, last.dice, () => { tot.textContent = last.total; tot.classList.add('pop'); });
+    } else if (last && !dice.classList.contains('rolling') && !dice.querySelector('.pip-die')) {
+      dice.replaceChildren(dieFace(last.dice[0]), dieFace(last.dice[1])); tot.textContent = last.total;
+    }
+    if (o.tied && o.tied.includes(p.id) && o.pending.includes(p.id)) li.classList.add('tied');
+    return li;
+  }));
+}
+function showOrderDone() {
+  const s = state, o = s.order; if (!o || !o.done || orderDoneShown) return;
+  orderDoneShown = true; orderFinishing = true; // render() berikutnya memutar dadu lemparan terakhir
+  const panel = $('#orderPanel'), list = $('#opList');
+  const show = () => {
+    orderFinishing = false;
+    panel.classList.remove('hidden'); panel.classList.add('done');
+    $('#opKicker').textContent = 'URUTAN GILIRAN'; $('#opTitle').textContent = `${pname(o.done[0].id)} jalan duluan!`; $('#opSub').textContent = 'Giliran berjalan sesuai urutan ini.';
+    list.replaceChildren(...o.done.map(d => {
+      const li = el('li', 'op-row final' + (d.id === me.id ? ' me' : ''));
+      const who = el('span', 'op-who'); who.append(el('span', `place p${Math.min(d.pos, 4)}`, String(d.pos)), el('b', null, pname(d.id) + (d.id === me.id ? ' (kamu)' : '')));
+      li.append(who, el('span', 'op-total', d.scores.join(' → ')));
+      return li;
+    }));
+    A.sfx.turn && A.sfx.turn();
+    clearTimeout(orderHideT);
+    orderHideT = setTimeout(() => { orderHideT = null; panel.classList.add('hidden'); banner('PESTA DIMULAI', `${pname(o.done[0].id)} jalan duluan`); }, 2800);
+  };
+  // tunggu animasi dadu terakhir selesai
+  setTimeout(show, document.body.classList.contains('reduce-motion') ? 200 : 900);
+}
+
 function render() {
   if (!state || !me) return show('home');
   if (state.phase === 'LOBBY') { renderLobby(); show('lobby'); }
@@ -174,6 +249,7 @@ function render() {
     if (!board) { try { initBoard(); } catch (e) { console.error(e); toast('Browser ini tidak mendukung WebGL/3D.', 'error'); } }
     if (board) { board.myId = me.id; board.update(state, {}); if (introPending) { introPending = false; board.intro(); } }
     renderGame();
+    renderOrder();
   }
   const over = state.phase === 'GAME_OVER';
   const busy = board && (board.rolling || fxBusy);
@@ -291,7 +367,7 @@ $('#logBtn').onclick = () => $('#drawer').classList.toggle('hidden');
 let exitFocus = null;
 function openExit() {
   const s = state;
-  const playing = s && s.phase === 'PLAYING' && me && me.alive;
+  const playing = s && ['PLAYING', 'ORDER'].includes(s.phase) && me && me.alive;
   $('#exitTitle').textContent = playing ? 'Keluar dari pesta?' : 'Kembali ke beranda?';
   $('#exitText').textContent = playing
     ? 'Kamu dianggap menyerah: posisimu jadi paling bawah dan tidak dapat poin. Karaktermu tetap di papan sebagai tamu biasa, identitasnya tidak dibuka.'
@@ -343,6 +419,7 @@ function renderGame() {
   const myTurn = s.turnPlayerId === me.id && s.phase === 'PLAYING';
   const ti = $('#turnInfo'); ti.replaceChildren();
   if (s.phase === 'GAME_OVER') ti.textContent = `Selesai — ${s.winnerId ? pname(s.winnerId) + ' menang!' : 'tanpa pemenang'}`;
+  else if (s.phase === 'ORDER') { ti.append(el('b', null, 'Urutan giliran')); ti.classList.remove('mine'); }
   else { ti.append(el('b', null, myTurn ? 'Giliranmu!' : `Giliran ${pname(s.turnPlayerId)}`)); ti.classList.toggle('mine', myTurn); }
   $('#playerStrip').replaceChildren(...s.players.map(chip));
 
@@ -372,7 +449,18 @@ function renderGame() {
   const ap = $('#actionPanel'); ap.replaceChildren();
   ap.classList.toggle('mine', myTurn && !rolling && s.phase === 'PLAYING');
   const msg = el('div', 'action-msg');
-  if (s.phase === 'GAME_OVER') msg.textContent = 'Permainan selesai.';
+  if (s.phase === 'ORDER') {
+    const mine = s.order.pending.includes(me.id);
+    ap.classList.toggle('mine', mine);
+    msg.textContent = mine ? 'Lempar 2 dadu untuk menentukan urutan giliran.' : 'Menunggu pemain lain melempar dadu…';
+    if (mine) {
+      const b = btnWithIcon('btn primary roll', ICON.dice, 'Lempar 2 Dadu');
+      b.disabled = myOrderRolling;
+      b.onclick = () => { myOrderRolling = true; b.disabled = true; const w = $(`#opList li[data-id="${me.id}"] .op-dice`); if (w) { w.classList.add('rolling'); w.replaceChildren(dieFace(1), dieFace(1)); } emit('order_roll').then(() => { myOrderRolling = false; }); };
+      ap.append(b);
+    }
+  }
+  else if (s.phase === 'GAME_OVER') msg.textContent = 'Permainan selesai.';
   else if (rolling) msg.textContent = 'Dadu sedang bergulir…';
   else if (!me.alive) msg.textContent = 'Kamu tersingkir. Tetap tonton, tapi jangan bocorkan identitas siapa pun!';
   else if (!myTurn) msg.textContent = s.step === 'ROLL' ? `${pname(s.turnPlayerId)} akan melempar dadu…` : s.step === 'MOVE' ? `${pname(s.turnPlayerId)} sedang memindahkan tamu…` : `${pname(s.turnPlayerId)} dapat HITAM dan sedang memutuskan…`;
@@ -499,7 +587,7 @@ function stopConfetti() { cancelAnimationFrame(confettiRAF); confettiRAF = null;
 const RING = 2 * Math.PI * 15.5;
 setInterval(() => {
   const t = $('#timer');
-  if (!state || state.phase !== 'PLAYING' || !state.turnEndsAt) { t.classList.add('hidden'); return; }
+  if (!state || !['PLAYING', 'ORDER'].includes(state.phase) || !state.turnEndsAt) { t.classList.add('hidden'); return; }
   t.classList.remove('hidden');
   const nowS = Date.now() + clockOffset;
   const left = Math.max(0, state.turnEndsAt - nowS), total = Math.max(1000, state.turnEndsAt - turnStartAt);

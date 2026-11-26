@@ -17,7 +17,9 @@ async function bot(name, code, opts = {}) {
   return b;
 }
 function act(b) {
-  const st = b.state; if (!st || st.phase !== 'PLAYING' || st.turnPlayerId !== b.id || b.paused) return;
+  const st = b.state;
+  if (st && st.phase === 'ORDER' && st.order.pending.includes(b.id) && b.orderSent !== st.order.round) { b.orderSent = st.order.round; b.s.emit('order_roll', {}, () => {}); return; }
+  if (!st || st.phase !== 'PLAYING' || st.turnPlayerId !== b.id || b.paused) return;
   const key = `${st.step}:${st.log.at(-1)?.n}`; if (b.last === key) return; b.last = key;
   setTimeout(async () => {
     let r;

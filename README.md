@@ -4,6 +4,7 @@ Game deduksi identitas tersembunyi untuk 3–8 pemain, dimainkan di browser (HP/
 
 ## Cara main
 - Ada 20 tamu bertopeng yang tersebar di 5 pulau. Setiap pemain diam-diam menjadi salah satu tamu itu.
+- **Urutan giliran**: di awal pesta semua pemain melempar 2 dadu biasa (1–6). Total tertinggi jalan duluan, lalu urut ke bawah. Kalau seri, hanya pemain yang seri yang melempar ulang. Yang tidak melempar dalam 15 detik (atau sedang offline) dilemparkan otomatis.
 - Di giliranmu, lempar dadu:
   - **Pulau**: pindahkan tamu mana saja *masuk ke* atau *keluar dari* pulau itu, ke pulau yang bersebelahan.
   - **Hitam**: buka topeng satu tamu yang **satu pulau dengan karaktermu**, atau ambil kartu tamu biasa (maks 3) untuk menyuruhnya pulang. Setelah punya 3 kartu, kamu wajib membuka topeng.
@@ -154,6 +155,7 @@ npm test
 |---|---|---|
 | `PORT` | 3000 | Port server |
 | `TURN_MS` | 45000 | Batas waktu per giliran. Kalau habis, server menjalankan aksi otomatis. |
+| `ORDER_MS` | 15000 | Batas waktu lempar 2 dadu penentu urutan giliran di awal pesta |
 | `OFFLINE_TURN_MS` | 8000 | Batas waktu giliran untuk pemain yang sedang offline |
 | `MIN_PLAYERS` | 3 | Minimal pemain untuk mulai (isi 2 kalau mau tes berdua) |
 | `SUPABASE_URL` | – | URL project Supabase, mis. `https://abcd.supabase.co` |

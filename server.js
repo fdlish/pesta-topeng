@@ -153,8 +153,26 @@ function scheduleTurn(room) {
 }
 
 // Setiap perubahan state lewat sini: atur ulang timer jika giliran/step berubah, lalu sync.
+const ORDER_MS = Number(process.env.ORDER_MS) || 15000;
+function scheduleOrder(room) {
+  clearTimeout(room.turnTimer);
+  room.turnEndsAt = Date.now() + ORDER_MS;
+  room.turnTimer = setTimeout(() => {
+    try { G.orderAutoRoll(room.game); } catch (e) { console.error('orderAuto', e.message); }
+    afterChange(room);
+  }, ORDER_MS);
+}
 function afterChange(room) {
   const g = room.game;
+  if (g.phase === 'ORDER') { // pemain offline langsung dilemparkan otomatis
+    const off = g.order.pending.filter(id => !G.player(g, id)?.connected);
+    if (off.length) G.orderAutoRoll(g, off);
+  }
+  if (g.phase === 'ORDER') {
+    const key = `O:${g.order.round}`;
+    if (key !== room.turnKey) { room.turnKey = key; scheduleOrder(room); }
+    return sync(room);
+  }
   const key = g.phase === 'PLAYING' ? `${g.turnIdx}:${g.step}:${g.seq}` : null;
   if (key !== room.turnKey) { room.turnKey = key; key ? scheduleTurn(room) : (clearTimeout(room.turnTimer), room.turnEndsAt = null); }
   sync(room);
@@ -313,6 +331,7 @@ io.on('connection', socket => {
     G.startGame(room.game);
   }));
   socket.on('roll', action((room, p) => G.roll(room.game, p.id)));
+  socket.on('order_roll', action((room, p) => G.orderRoll(room.game, p.id)));
   socket.on('move', action((room, p, { charId, to, spot }) => G.move(room.game, p.id, charId, to, spot)));
   socket.on('kill', action((room, p, { targetId }) => G.kill(room.game, p.id, targetId)));
   socket.on('draw', action((room, p) => G.draw(room.game, p.id)));
@@ -328,7 +347,7 @@ io.on('connection', socket => {
     if (!room || !p) return;
     socket.leave(room.code); socket.data.code = null; socket.data.playerId = null;
     if (room.game.phase === 'LOBBY') return removePlayer(room, p.id);
-    if (room.game.phase === 'PLAYING') G.forfeit(room.game, p.id); // keluar di tengah permainan = menyerah
+    if (['PLAYING', 'ORDER'].includes(room.game.phase)) G.forfeit(room.game, p.id); // keluar di tengah permainan = menyerah
     p.connected = false; p.socketId = null; migrateHost(room); afterChange(room); checkEmpty(room);
   });
 

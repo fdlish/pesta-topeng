@@ -17,7 +17,9 @@ const token = () => 'local_' + Math.random().toString(36).slice(2) + Math.random
 async function connect() { const s = io(URL, { forceNew: true }); await new Promise(r => s.on('connect', r)); return s; }
 function play(b) {
   const act = () => {
-    const st = b.state; if (!st || st.phase !== 'PLAYING' || st.turnPlayerId !== b.id) return;
+    const st = b.state;
+    if (st && st.phase === 'ORDER' && st.order.pending.includes(b.id) && b.orderSent !== st.order.round) { b.orderSent = st.order.round; b.s.emit('order_roll', {}, () => {}); return; }
+    if (!st || st.phase !== 'PLAYING' || st.turnPlayerId !== b.id) return;
     const key = `${st.step}:${st.log.at(-1)?.n}`; if (b.last === key) return; b.last = key;
     setTimeout(async () => {
       let r;
@@ -90,7 +92,7 @@ function play(b) {
   ok(st0.players.find(p => p.id === guest.id).guest === true, 'tamu ditandai guest');
   await call(rara.s, 'start_game');
   await sleep(400);
-  ok(['PLAYING', 'GAME_OVER'].includes(listed.find(r => r.code === pubRoom.code)?.phase), 'daftar room menunjukkan "sedang main"');
+  ok(['ORDER', 'PLAYING', 'GAME_OVER'].includes(listed.find(r => r.code === pubRoom.code)?.phase), 'daftar room menunjukkan "sedang main"');
 
   const t0 = Date.now();
   while (rara.state.phase !== 'GAME_OVER' && Date.now() - t0 < 60000) await sleep(50);

@@ -88,9 +88,11 @@ function startGame(g, rng = Math.random) {
     g.figures[id] = room;
     g.spots[id] = LAYOUT.findSpot(room, othersIn(g, room, id), null, rng); // tersebar lega
   });
-  g.phase = 'PLAYING';
-  g.turnIdx = 0; g.step = 'ROLL'; g.die = null; g.winnerId = null; g.log = []; g.lastEvent = null;
-  log(g, `Pesta dimulai! ${g.players[0].name} jalan duluan.`);
+  g.turnIdx = 0; g.step = null; g.die = null; g.winnerId = null; g.log = []; g.lastEvent = null;
+  // fase ORDER: semua pemain melempar 2 dadu angka (1–6); total tertinggi jalan duluan, seri = lempar ulang
+  g.phase = 'ORDER';
+  g.order = { round: 1, pending: g.players.map(p => p.id), scores: {}, last: {}, tied: [], done: null };
+  log(g, 'Pesta dimulai! Lempar 2 dadu untuk menentukan urutan giliran.');
 }
 
 const othersIn = (g, room, except) => Object.keys(g.figures).filter(id => id !== except && g.figures[id] === room && g.spots[id]).map(id => g.spots[id]);
@@ -153,15 +155,58 @@ function standings(g) {
   });
 }
 
+// ---------- lempar 2 dadu untuk urutan giliran ----------
+function orderRoll(g, pid, rng = Math.random) {
+  if (g.phase !== 'ORDER') throw new Error('Bukan waktunya melempar dadu urutan');
+  const o = g.order;
+  if (!o.pending.includes(pid)) throw new Error('Kamu sudah melempar, tunggu pemain lain');
+  const dice = [1 + Math.floor(rng() * 6), 1 + Math.floor(rng() * 6)];
+  const total = dice[0] + dice[1];
+  (o.scores[pid] = o.scores[pid] || []).push(total);
+  o.last[pid] = { dice, total, round: o.round };
+  o.pending = o.pending.filter(x => x !== pid);
+  event(g, 'orderRoll', null, { by: pid, dice, total, round: o.round });
+  if (!o.pending.length) resolveOrder(g);
+}
+function orderAutoRoll(g, onlyIds = null, rng = Math.random) {
+  if (g.phase !== 'ORDER') return;
+  for (const id of [...g.order.pending]) if (!onlyIds || onlyIds.includes(id)) { if (g.phase !== 'ORDER') break; orderRoll(g, id, rng); }
+}
+const lexDesc = (a, b) => { for (let i = 0; i < Math.max(a.length, b.length); i++) { const d = (b[i] || 0) - (a[i] || 0); if (d) return d; } return 0; };
+function resolveOrder(g) {
+  const o = g.order;
+  const ids = g.players.filter(p => p.alive).map(p => p.id);
+  const groups = {};
+  for (const id of ids) (groups[o.scores[id].join(',')] = groups[o.scores[id].join(',')] || []).push(id);
+  const tied = Object.values(groups).filter(a => a.length > 1).flat();
+  if (tied.length) { // seri → hanya yang seri melempar ulang
+    o.round++; o.pending = tied; o.tied = tied;
+    log(g, `Seri! ${tied.map(id => player(g, id).name).join(', ')} lempar ulang.`);
+    return;
+  }
+  const sorted = [...ids].sort((a, b) => lexDesc(o.scores[a], o.scores[b]));
+  g.players = [...sorted.map(id => player(g, id)), ...g.players.filter(p => !sorted.includes(p.id))];
+  o.done = sorted.map((id, i) => ({ id, pos: i + 1, total: o.scores[id][o.scores[id].length - 1], scores: o.scores[id] }));
+  o.tied = [];
+  g.phase = 'PLAYING'; g.turnIdx = 0; g.step = 'ROLL'; g.die = null;
+  log(g, `Urutan giliran: ${sorted.map((id, i) => `${i + 1}. ${player(g, id).name} (${o.scores[id].join('→')})`).join(', ')}.`);
+  log(g, `${player(g, sorted[0]).name} jalan duluan.`);
+}
+
 // Pemain keluar di tengah permainan = menyerah. Karakternya tetap di papan sebagai tamu biasa
 // (identitasnya tidak dibuka), posisinya paling bawah, dan tidak mendapat poin.
 function forfeit(g, pid) {
   const p = player(g, pid);
-  if (!p || g.phase !== 'PLAYING' || !p.alive) return false;
+  if (!p || !['PLAYING', 'ORDER'].includes(g.phase) || !p.alive) return false;
   const wasTurn = currentPlayer(g)?.id === pid;
   p.alive = false; p.forfeit = true; p.outAt = ++g.outSeq;
   event(g, 'forfeit', null, { by: pid });
   log(g, `${p.name} keluar dari pesta (menyerah).`);
+  if (g.phase === 'ORDER') {
+    g.order.pending = g.order.pending.filter(x => x !== pid);
+    if (!checkWin(g) && !g.order.pending.length) resolveOrder(g);
+    return true;
+  }
   if (wasTurn) nextTurn(g); else checkWin(g);
   return true;
 }
@@ -245,7 +290,7 @@ function autoAct(g, rng = Math.random) {
 }
 
 function resetToLobby(g) {
-  g.standings = null; g.outSeq = 0;
+  g.standings = null; g.outSeq = 0; g.order = null;
   g.phase = 'LOBBY'; g.figures = {}; g.spots = {}; g.deck = []; g.step = null; g.die = null; g.winnerId = null; g.log = [];
   g.players.forEach(p => { p.charId = null; p.alive = true; p.cards = []; p.outAt = null; p.unmasks = 0; p.forfeit = false; });
 }
@@ -272,6 +317,7 @@ function publicView(g) {
     log: g.log,
     winnerId: g.winnerId,
     standings: g.phase === 'GAME_OVER' ? g.standings : null,
+    order: g.order ? { round: g.order.round, pending: g.order.pending, last: g.order.last, tied: g.order.tied, done: g.order.done } : null,
   };
 }
 
@@ -285,5 +331,5 @@ function privateView(g, p) {
 module.exports = {
   ROOMS, ROOM_LABEL, ROOM_COLOR_NAME, ADJ, DIE, CHARACTERS, MIN_PLAYERS, MAX_PLAYERS,
   createGame, startGame, roll, move, kill, draw, autoAct, resetToLobby, legalMoves, blackOptions,
-  publicView, privateView, currentPlayer, player, standings, forfeit,
+  publicView, privateView, currentPlayer, player, standings, forfeit, orderRoll, orderAutoRoll,
 };

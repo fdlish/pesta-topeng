@@ -669,3 +669,32 @@ html, body { overflow-x: clip; }
 .peek-label.show { opacity: 1; animation: peekPop .32s var(--spring); }
 @keyframes peekPop { from { scale: .7; } to { scale: 1; } }
 body.reduce-motion .peek-label.show { animation: none; }
+
+/* lempar 2 dadu untuk urutan giliran */
+.order-panel { position: absolute; inset: 0; margin: auto; height: fit-content; z-index: 8; width: min(92vw, 420px); max-height: 70vh; overflow: auto;
+  padding: 18px 16px 14px; border-radius: 20px; background: rgba(17,21,28,.96); border: 1px solid var(--border-strong);
+  box-shadow: 0 30px 80px -20px rgba(0,0,0,.9); text-align: center; animation: popIn .45s var(--spring) both; }
+.order-panel.hidden { display: none; }
+.op-kicker { margin: 0; font: 700 .72rem var(--sans); letter-spacing: .14em; color: var(--brass-hi); }
+.order-panel h2 { margin: 4px 0 2px; font-size: 1.5rem; }
+.op-sub { margin: 0 0 12px; color: var(--muted); font-size: .88rem; }
+.op-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; text-align: left; }
+.op-row { display: grid; grid-template-columns: 1fr auto 38px; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); }
+.op-row.me { border-color: rgba(201,161,74,.6); }
+.op-row.tied { border-color: rgba(239,68,68,.55); }
+.op-who { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.op-who b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .92rem; }
+.op-dice { display: inline-flex; gap: 6px; min-height: 30px; align-items: center; }
+.op-wait { font-size: .78rem; color: var(--muted); }
+.op-row.me.waiting .op-wait { color: var(--brass-hi); font-weight: 600; }
+.op-total { font: 800 1.15rem var(--sans); color: var(--brass-hi); text-align: right; font-variant-numeric: tabular-nums; }
+.op-total.pop { animation: popIn .4s var(--spring); }
+.op-row.final { grid-template-columns: 1fr auto; }
+.op-row.final .op-total { font-size: .95rem; }
+.pip-die svg { width: 30px; height: 30px; display: block; }
+.pip-die rect { fill: #f3ead7; stroke: #c9a14a; stroke-width: 1.5; }
+.pip-die circle { fill: #15171c; }
+.op-dice.rolling .pip-die { animation: dieShake .18s linear infinite; }
+.op-dice.rolling .pip-die:nth-child(2) { animation-direction: reverse; }
+@keyframes dieShake { 0% { transform: rotate(-14deg) translateY(-2px); } 50% { transform: rotate(12deg) translateY(1px); } 100% { transform: rotate(-14deg) translateY(-2px); } }
+body.reduce-motion .op-dice.rolling .pip-die { animation: none; }
