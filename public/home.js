@@ -50,11 +50,6 @@ export function initHome(config, deps) {
     $('#localNote').classList.remove('hidden');
   }
   $('#googleBtn').onclick = signIn;
-  $('#guestToggle').onclick = () => {
-    const open = $('#guestBox').classList.toggle('hidden') === false;
-    $('#guestToggle').setAttribute('aria-expanded', String(open));
-    if (open) $('#nameInput').focus();
-  };
   setupTabs();
   setupSeg();
   setupNameDialog();
@@ -96,6 +91,10 @@ function renderAccount() {
   const area = $('#accountArea'); area.replaceChildren();
   const p = acct.profile;
   $('#authCard').classList.toggle('hidden', acct.signedIn);
+  // baris "Kepada Yth." pada undangan: isi sendiri (tamu) atau nama akun
+  $('#nameInput').classList.toggle('hidden', !!p);
+  $('#invUser').classList.toggle('hidden', !p);
+  if (p) $('#invUser').textContent = p.username;
   $('#tab-me').classList.toggle('dim', !p);
   if (!acct.signedIn) {
     const b = el('button', 'btn small signin-mini');
@@ -157,8 +156,8 @@ function setupSeg() {
     btns.forEach(x => { const on = x === b; x.setAttribute('aria-checked', String(on)); x.tabIndex = on ? 0 : -1; });
     $('.seg').dataset.vis = visibility;
     $('#visHelp').textContent = visibility === 'public'
-      ? 'Tampil di daftar room publik.'
-      : 'Tidak tampil di daftar, masuk hanya dengan kode.';
+      ? 'Tampil di daftar pesta terbuka.'
+      : 'Tidak tampil di daftar. Tamu masuk dengan kode.';
   };
   btns.forEach((b, i) => {
     b.onclick = () => pick(b);
@@ -173,10 +172,10 @@ function identity() {
   if (acct.signedIn && acct.needsUsername) { openNameDialog(); return { ok: false, dialog: true }; }
   const name = $('#nameInput').value.trim();
   if (!name) {
-    $('#homeErr').textContent = 'Masuk dengan Google, atau isi nama tamu dulu.';
+    $('#homeErr').textContent = 'Tulis namamu di baris "Kepada Yth." dulu, atau masuk dengan akun.';
     D.sfx.error();
-    if ($('#guestBox').classList.contains('hidden')) $('#guestToggle').click(); else $('#nameInput').focus();
-    $('#authCard').classList.remove('nudge'); void $('#authCard').offsetWidth; $('#authCard').classList.add('nudge');
+    $('#nameInput').focus();
+    const n = $('#nameInput'); n.classList.remove('nudge'); void n.offsetWidth; n.classList.add('nudge');
     return { ok: false };
   }
   try { const s = JSON.parse(localStorage.getItem('pestaTopeng') || '{}'); localStorage.setItem('pestaTopeng', JSON.stringify({ ...s, name })); } catch {}
@@ -224,7 +223,7 @@ function renderRooms() {
   if (!rooms.length) {
     const li = el('li', 'room-empty');
     li.innerHTML = '<svg class="ic big" viewBox="0 0 64 40" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M2 7C10 1 22 2 32 10C42 2 54 1 62 7C64 22 56 34 44 34C38 34 35 27 32 27C29 27 26 34 20 34C8 34 0 22 2 7ZM12 17C14 13 21 13 25 17C21 21 15 21 12 17ZM39 17C43 13 50 13 52 17C49 21 43 21 39 17Z"/></svg>';
-    li.append(el('b', null, 'Belum ada room publik'), el('span', null, 'Buat room publik, pemain lain akan melihatnya di sini.'));
+    li.append(el('b', null, 'Belum ada pesta terbuka'), el('span', null, 'Buka pesta baru dengan pilihan Terbuka, nanti tamu lain bisa mampir dari sini.'));
     return ul.replaceChildren(li);
   }
   ul.replaceChildren(...rooms.map(r => {

@@ -30,7 +30,8 @@ const DIE_SIDES = ['papua', 'sulawesi', 'jawa', 'sumatera', 'kalimantan']; // ur
 // tombol "Kurangi animasi" di dalam game.
 let REDUCED = (() => { try { return localStorage.getItem('pt-reduce-motion') === '1'; } catch { return false; } })();
 export function setReducedMotion(v) { REDUCED = !!v; }
-const SERIF = '"Playfair Display", Georgia, serif';
+const SERIF = 'Shrikhand, "Plus Jakarta Sans", sans-serif'; // nama pulau: gaya papan cat tangan
+const SANS = '"Plus Jakarta Sans", system-ui, sans-serif';
 const EMOJI_FONT = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
 
 const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
@@ -239,7 +240,7 @@ export class Board3D {
       const label = this.meta.roomLabel[room].toUpperCase();
       const light = room === 'papua';
       let fs = h * 0.4, sp = fs * 0.12;
-      const fit = () => { g.font = `700 ${fs}px ${SERIF}`; return g.measureText(label).width + label.length * sp; };
+      const fit = () => { g.font = `400 ${fs}px ${SERIF}`; return g.measureText(label).width + label.length * sp; };
       while (fit() > w * 0.78 && fs > 40) { fs -= 4; sp = fs * 0.12; }
       g.textAlign = 'center'; g.textBaseline = 'middle';
       g.save();
@@ -264,7 +265,7 @@ export class Board3D {
         g.save(); g.rotate(a); g.beginPath(); g.moveTo(0, -r); g.lineTo(9, 0); g.lineTo(-9, 0); g.closePath();
         g.globalAlpha = long ? 0.95 : 0.6; g.fill(); g.restore();
       }
-      g.globalAlpha = 1; g.font = `700 30px ${SERIF}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.globalAlpha = 1; g.font = `800 30px ${SANS}`; g.textAlign = 'center'; g.textBaseline = 'middle';
       g.fillText('U', 0, -116 + 6);
     });
     const m = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 1.0), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false }));
@@ -425,8 +426,8 @@ export class Board3D {
         const txt = this.meta.roomLabel[f].toUpperCase();
         g.translate(P / 2, PH / 2); g.rotate(-Math.PI / 2);
         g.fillStyle = INK_ON[f] || CREAM; g.textAlign = 'center'; g.textBaseline = 'middle';
-        let size = 62; g.font = `700 ${size}px ${SERIF}`;
-        while (g.measureText(txt).width > PH - 90 && size > 24) { size -= 2; g.font = `700 ${size}px ${SERIF}`; }
+        let size = 62; g.font = `800 ${size}px ${SANS}`;
+        while (g.measureText(txt).width > PH - 90 && size > 24) { size -= 2; g.font = `800 ${size}px ${SANS}`; }
         g.fillText(txt, 0, 0);
         g.restore();
       });
@@ -523,8 +524,8 @@ export class Board3D {
     g.beginPath(); g.roundRect(14, 10, 484, 150, 40); g.fill(); g.stroke();
     g.beginPath(); g.moveTo(236, 158); g.lineTo(256, 186); g.lineTo(276, 158); g.closePath(); g.fillStyle = '#f2cf7a'; g.fill();
     g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillStyle = '#f2cf7a'; g.font = '800 64px Inter, system-ui, sans-serif'; g.fillText('INI KAMU', 256, 66);
-    g.fillStyle = '#f3ead7'; g.font = '600 38px Inter, system-ui, sans-serif'; g.fillText(name, 256, 124);
+    g.fillStyle = '#f2cf7a'; g.font = '800 64px "Plus Jakarta Sans", system-ui, sans-serif'; g.fillText('INI KAMU', 256, 66);
+    g.fillStyle = '#f3ead7'; g.font = '600 38px "Plus Jakarta Sans", system-ui, sans-serif'; g.fillText(name, 256, 124);
     label.material.map.needsUpdate = true;
   }
 

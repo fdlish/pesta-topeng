@@ -23,6 +23,16 @@ Papan: `[Sumatera][Kalimantan] / [Jawa] / [Sulawesi][Papua]`.
 
 Dadu berbentuk **prisma segi lima dengan 7 sisi**: 5 sisi panjang PAPUA, SULAWESI, JAWA, SUMATERA, KALIMANTAN (masing-masing dengan warnanya) + 2 ujung HITAM. Peluangnya: HITAM 2/7 (±29%), tiap pulau 1/7 (±14%). Hasil diundi server secara adil, jadi bentuk prisma tidak memengaruhi peluang.
 
+## Main bareng (v3)
+- **Bot pemain**: host bisa mengisi kursi kosong dengan bot berkepribadian *Nekat* (cepat buka topeng), *Licik* (jarang menyentuh bidaknya sendiri, suka buka kartu), atau *Waspada* (menjaga bidaknya di keramaian). Bot membaca gerak-gerik lawan untuk menebak bidak pemain dan "berpikir" dengan jeda alami. Main sendirian lawan bot = latihan tanpa poin; dengan 2+ manusia, poin dihitung antar-manusia saja (bonus juara hanya untuk pemenang sungguhan).
+- **Gladi resik (latihan)**: satu ketukan dari beranda, tanpa akun. Room privat + 2 bot, dengan panduan yang muncul sesuai situasi.
+- **Reaksi cepat**: Curiga, Waduh, Sstt, Wkwk, Bukan aku!, Mantap. Muncul sebagai gelembung di bawah nama pemain; bot ikut heboh saat topeng terbongkar.
+- **Catatan rahasia**: ketuk nama lawan untuk menandai tebakan karaktermu. Hanya tampil di perangkatmu (chip lawan & label bidak).
+- **Rekap akhir pesta**: gelar dari statistik permainan (Si Licin, Tukang Bongkar, Hidup di Ujung Tanduk, Sayang Diri Sendiri, Salah Sasaran, Kolektor Kartu, Paling Diperebutkan, Langganan Dadu Hitam), linimasa topeng terbongkar, dan tombol Bagikan hasil.
+- **Pesta lagi** dengan satu tombol (pemain & bot sama, langsung lempar dadu urutan).
+- **Drama di meja**: semua tamu gemetar saat dadu hitam, meja bergetar dan ada jeda sebelum kartu dibalik saat topeng terbuka.
+- **Identitas undangan**: beranda berupa kartu undangan kunyit dengan pita batik kawung dan cap "Rahasia", latar nila. Huruf **Shrikhand** (judul besar, gaya papan cat tangan) dan **Plus Jakarta Sans** (karya foundry Indonesia, untuk teks). Link undangan menampilkan gambar pratinjau (`public/og.jpg`) dan menyebut kode room serta nama pengundang di WhatsApp/Telegram.
+
 ## Pengalaman bermain (polesan v2)
 - **Musik latar generatif**, bergaya *masquerade lounge*: progresi jazz ii–V–I, bas, sikat drum, dan melodi acak, jadi tidak pernah berulang persis. Tempo dan perkusi naik saat tersisa 2 pemain. Dibuat dengan WebAudio, tanpa file. Musik berhenti saat tab disembunyikan.
 - **17 efek suara**: klik, hover, ambil/lepas bidak, kocokan & pantulan dadu, *swoosh* terbang, lonceng "giliranmu", detik terakhir timer, dentuman buka topeng, *poof* tamu biasa, kartu dibalik, fanfare menang, nada kalah, pemain bergabung, dan error.
@@ -156,6 +166,7 @@ npm test
 |---|---|---|
 | `PORT` | 3000 | Port server |
 | `TURN_MS` | 45000 | Batas waktu per giliran. Kalau habis, server menjalankan aksi otomatis. |
+| `BOT_SPEED` | 1 | Pengali jeda berpikir bot (mis. 0.2 untuk pengujian cepat) |
 | `ORDER_MS` | 15000 | Batas waktu lempar 2 dadu penentu urutan giliran di awal pesta |
 | `OFFLINE_TURN_MS` | 8000 | Batas waktu giliran untuk pemain yang sedang offline |
 | `MIN_PLAYERS` | 3 | Minimal pemain untuk mulai (isi 2 kalau mau tes berdua) |

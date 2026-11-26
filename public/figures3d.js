@@ -311,7 +311,7 @@ export function buildFigure(c, i) {
 export function nameTag(text) {
   const c = document.createElement('canvas'); c.width = 256; c.height = 64;
   const g = c.getContext('2d');
-  g.font = '600 30px Inter, system-ui, sans-serif';
+  g.font = '600 30px "Plus Jakarta Sans", system-ui, sans-serif';
   const w = Math.min(248, g.measureText(text).width + 36);
   g.fillStyle = 'rgba(11,14,19,.88)'; g.strokeStyle = 'rgba(201,161,74,.9)'; g.lineWidth = 2;
   g.beginPath(); g.roundRect((256 - w) / 2, 8, w, 48, 24); g.fill(); g.stroke();

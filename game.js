@@ -165,7 +165,9 @@ function standings(g) {
     if (withBots) {
       if (humans.length < 2) return { id: p.id, placement, unmasks, practice: true, points: 0, breakdown: [{ key: 'practice', label: 'Main lawan bot: latihan, tanpa poin', pts: 0 }] };
       const hp = humans.indexOf(p) + 1, hn = humans.length, hu = p.unmasksH || 0;
-      return { id: p.id, placement, unmasks, points: SCORING.points(hp, hn, hu), breakdown: [...SCORING.breakdown(hp, hn, hu), { key: 'bots', label: 'Bot tidak dihitung dalam poin', pts: 0 }] };
+      // bonus juara 1 hanya untuk pemenang sungguhan (bukan sekadar manusia terbaik saat bot yang menang)
+      const parts = SCORING.breakdown(hp, hn, hu).filter(b => b.key !== 'win' || p.id === g.winnerId);
+      return { id: p.id, placement, unmasks, points: parts.reduce((t, b) => t + b.pts, 0), breakdown: [...parts, { key: 'bots', label: 'Bot tidak dihitung dalam poin', pts: 0 }] };
     }
     return { id: p.id, placement, unmasks, points: SCORING.points(placement, n, unmasks), breakdown: SCORING.breakdown(placement, n, unmasks) };
   });

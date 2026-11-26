@@ -1,10 +1,10 @@
+@font-face { font-family: Shrikhand; font-weight: 400; font-display: swap; src: url(/vendor/fonts/shrikhand/files/shrikhand-latin-400-normal.woff2) format("woff2"); }
+@font-face { font-family: "Plus Jakarta Sans"; font-weight: 400; font-display: swap; src: url(/vendor/fonts/plus-jakarta-sans/files/plus-jakarta-sans-latin-400-normal.woff2) format("woff2"); }
+@font-face { font-family: "Plus Jakarta Sans"; font-weight: 500; font-display: swap; src: url(/vendor/fonts/plus-jakarta-sans/files/plus-jakarta-sans-latin-500-normal.woff2) format("woff2"); }
+@font-face { font-family: "Plus Jakarta Sans"; font-weight: 600; font-display: swap; src: url(/vendor/fonts/plus-jakarta-sans/files/plus-jakarta-sans-latin-600-normal.woff2) format("woff2"); }
+@font-face { font-family: "Plus Jakarta Sans"; font-weight: 700; font-display: swap; src: url(/vendor/fonts/plus-jakarta-sans/files/plus-jakarta-sans-latin-700-normal.woff2) format("woff2"); }
+@font-face { font-family: "Plus Jakarta Sans"; font-weight: 800; font-display: swap; src: url(/vendor/fonts/plus-jakarta-sans/files/plus-jakarta-sans-latin-800-normal.woff2) format("woff2"); }
 /* Pesta Topeng — tinta, kuningan & krem (selaras papan "atlas antik") */
-@font-face { font-family: "Playfair Display"; font-weight: 600; font-display: swap; src: url(/vendor/fonts/playfair-display/files/playfair-display-latin-600-normal.woff2) format("woff2"); }
-@font-face { font-family: "Playfair Display"; font-weight: 700; font-display: swap; src: url(/vendor/fonts/playfair-display/files/playfair-display-latin-700-normal.woff2) format("woff2"); }
-@font-face { font-family: Inter; font-weight: 400; font-display: swap; src: url(/vendor/fonts/inter/files/inter-latin-400-normal.woff2) format("woff2"); }
-@font-face { font-family: Inter; font-weight: 500; font-display: swap; src: url(/vendor/fonts/inter/files/inter-latin-500-normal.woff2) format("woff2"); }
-@font-face { font-family: Inter; font-weight: 600; font-display: swap; src: url(/vendor/fonts/inter/files/inter-latin-600-normal.woff2) format("woff2"); }
-@font-face { font-family: Inter; font-weight: 700; font-display: swap; src: url(/vendor/fonts/inter/files/inter-latin-700-normal.woff2) format("woff2"); }
 
 :root {
   --bg: #0b0e13;
@@ -21,8 +21,9 @@
   --ok: #4ade80;
   --papua: #e4ecf2; --sulawesi: #d9a62e; --jawa: #2f63b8; --sumatera: #c2413a; --kalimantan: #2f8f57; --hitam: #15171c;
   --radius: 14px;
-  --serif: "Playfair Display", Georgia, "Times New Roman", serif;
-  --sans: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --serif: "Plus Jakarta Sans", system-ui, sans-serif; /* judul biasa: sans tebal */
+  --display: Shrikhand, "Plus Jakarta Sans", system-ui, sans-serif; /* judul tampilan: gaya papan cat tangan */
+  --sans: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --ease: cubic-bezier(.2, .8, .2, 1);
 }
 * { box-sizing: border-box; }
@@ -36,7 +37,7 @@ button { font-family: inherit; }
 .ic.big { width: 56px; height: 56px; }
 
 .screen { max-width: 540px; margin: 0 auto; padding: 20px; }
-h1, h2, h3 { font-family: var(--serif); font-weight: 700; letter-spacing: .01em; }
+h1, h2, h3 { font-family: var(--serif); font-weight: 800; letter-spacing: -.01em; }
 h1 { margin: 6px 0 4px; font-size: 2.6rem; line-height: 1.05; }
 h2 { font-size: 1.25rem; margin: 24px 0 10px; }
 .muted { color: var(--muted); } .center { text-align: center; }
@@ -264,7 +265,7 @@ body.reduce-motion *, body.reduce-motion *::before, body.reduce-motion *::after 
 .reveal-face.back .mask-svg { width: 120px; height: 75px; filter: drop-shadow(0 6px 18px rgba(201,161,74,.5)); }
 .reveal-face.front { transform: rotateY(180deg); position: relative; min-height: 380px; }
 .reveal.eliminated .reveal-face.front { border-color: rgba(239,68,68,.6); box-shadow: 0 30px 80px -20px rgba(0,0,0,.9), 0 0 40px -6px rgba(239,68,68,.45); }
-.rv-kicker { margin: 0 0 10px; font-size: .74rem; font-weight: 700; letter-spacing: .22em; color: var(--brass); }
+.rv-kicker { margin: 0 0 10px; font-size: .95rem; font-weight: 800; letter-spacing: 0; color: var(--brass); }
 .reveal.eliminated .rv-kicker { color: #fca5a5; }
 .rv-portrait { width: 120px; height: 120px; border-radius: 50%; overflow: hidden; background: radial-gradient(circle at 50% 30%, #3b4a5e, #1a212b 70%); box-shadow: 0 0 0 3px var(--brass), 0 10px 30px -8px rgba(0,0,0,.8); }
 .reveal.eliminated .rv-portrait { box-shadow: 0 0 0 3px var(--danger), 0 10px 30px -8px rgba(0,0,0,.8); }
@@ -631,7 +632,7 @@ html, body { overflow-x: clip; }
 .podium:empty { min-height: 0; margin: 0; }
 .pid { letter-spacing: .02em; }
 @media (min-width: 1024px) and (max-height: 860px) { .home-intro { position: static; } }
-/* angka statistik pakai Inter: angka Playfair bergaya "oldstyle" (0 kecil, 3/4 turun) sulit dibaca sebagai data */
+/* angka statistik: sans dengan angka tabular agar mudah dibandingkan */
 .stat b, .rw-pts, .pod-block, .pod-rank, .ir-cell, .ir-hash { font-family: var(--sans); font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
 .stat b { font-size: 1.3rem; }
 .recent-list li.muted { display: block; padding: 12px 4px; }
@@ -810,3 +811,121 @@ body.reduce-motion .react-bubble { animation: rbFade 2.6s linear both; }
 .coach p { margin: 0; flex: 1; font-size: .9rem; line-height: 1.45; }
 .coach b { color: #6b4a10; }
 .coach .btn { flex: none; margin: 0; background: #1d1a14; color: #f3ead7; border-color: #1d1a14; min-height: 40px; }
+
+/* ---------- huruf tampilan (Shrikhand) untuk momen besar ---------- */
+.big-code, .banner-title, .rv-role, #winnerText, .order-panel h2, .inv-title, .brand-word { font-family: var(--display); font-weight: 400; }
+.big-code { letter-spacing: .18em; }
+.banner-title { letter-spacing: .02em; }
+.rv-role { letter-spacing: .04em; }
+.aw-title { font-family: var(--sans); font-weight: 800; }
+
+/* =====================================================================
+   IDENTITAS: undangan pesta — nila batik, kunyit, cap merah cabai.
+   Beranda & lobby memakai palet ini; meja permainan tetap gelap.
+   ===================================================================== */
+#home, #lobby {
+  --nila: #1F2A52; --nila-ink: #141B38; --kunyit: #F2C14E; --kunyit-tua: #D9A43A; --cabai: #C8322A; --daun: #2F6B4F;
+  --bg: var(--nila); --surface: #19234a; --surface-2: #213061;
+  --border: rgba(242,193,78,.16); --border-strong: rgba(242,193,78,.55);
+  --text: #F6EFDD; --muted: #B7BCD3; --brass: var(--kunyit); --brass-hi: #F6D274; --on-brass: var(--nila-ink);
+}
+body:has(#home:not(.hidden)), body:has(#lobby:not(.hidden)) {
+  background-color: #1F2A52;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 56 56'%3E%3Cg fill='none' stroke='%23F2C14E' stroke-opacity='.04' stroke-width='1.2'%3E%3Cellipse cx='28' cy='14' rx='8' ry='12'/%3E%3Cellipse cx='28' cy='42' rx='8' ry='12'/%3E%3Cellipse cx='14' cy='28' rx='12' ry='8'/%3E%3Cellipse cx='42' cy='28' rx='12' ry='8'/%3E%3C/g%3E%3C/svg%3E"),
+    radial-gradient(120% 60% at 50% -10%, rgba(242,193,78,.10), transparent 60%);
+}
+#home .topbar { border-image: linear-gradient(to bottom, rgba(31,42,82,.92) calc(100% - 1px), rgba(242,193,78,.14) calc(100% - 1px)) fill 0 / / 0 100vmax; }
+#home .brand .mask-svg { width: 38px; height: 24px; color: var(--kunyit); }
+
+/* ---- kartu undangan ---- */
+.invite-col { padding-top: 14px; }
+.invite { position: relative; margin: 10px 0 8px; padding: 40px 32px 26px; border-radius: 4px; background: var(--kunyit); color: var(--nila-ink);
+  box-shadow: 0 1px 0 rgba(255,255,255,.45) inset, 0 34px 60px -28px rgba(4,7,22,.95), 8px 10px 0 -2px rgba(20,27,56,.55); }
+/* pita batik kawung di tepi kartu */
+.invite::before { content: ""; position: absolute; inset: 9px; padding: 9px; pointer-events: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 18 18'%3E%3Cg fill='%23141B38' fill-opacity='.82'%3E%3Cellipse cx='9' cy='4.2' rx='2.6' ry='3.6'/%3E%3Cellipse cx='9' cy='13.8' rx='2.6' ry='3.6'/%3E%3Cellipse cx='4.2' cy='9' rx='3.6' ry='2.6'/%3E%3Cellipse cx='13.8' cy='9' rx='3.6' ry='2.6'/%3E%3C/g%3E%3C/svg%3E") 0 0 / 18px 18px;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); }
+.invite::after { content: ""; position: absolute; inset: 22px; border: 1.5px solid rgba(20,27,56,.5); pointer-events: none; }
+.invite > * { position: relative; z-index: 1; }
+.invite :focus-visible { outline: 3px solid var(--nila-ink); outline-offset: 2px; }
+
+.inv-stamp { position: absolute; z-index: 2; top: 30px; right: 26px; width: 86px; height: 86px; display: grid; place-items: center; border-radius: 50%;
+  color: var(--cabai); border: 3px solid var(--cabai); box-shadow: inset 0 0 0 4px var(--kunyit), inset 0 0 0 5.5px var(--cabai);
+  transform: rotate(-14deg); opacity: .88; mix-blend-mode: multiply; }
+.inv-stamp span { font: 400 .8rem var(--display); }
+
+.inv-to { display: grid; gap: 2px; max-width: calc(100% - 96px); }
+.inv-to label { font-size: .86rem; font-weight: 600; }
+.inv-name { width: 100%; min-height: 44px; padding: 4px 2px; border: 0; border-bottom: 2px dotted var(--nila-ink); border-radius: 0; background: transparent;
+  color: var(--nila-ink); font: 800 1.3rem var(--sans); }
+.inv-name::placeholder { color: rgba(20,27,56,.42); font-weight: 600; }
+.inv-name:focus { outline: none; border-bottom-style: solid; background: rgba(255,255,255,.22); }
+.inv-user { display: flex; align-items: center; border-bottom-style: solid; }
+.inv-name.nudge { animation: nudgeX .45s var(--ease); }
+@keyframes nudgeX { 20% { transform: translateX(-6px); } 40% { transform: translateX(5px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(2px); } }
+
+.inv-lead { margin: 18px 0 2px; font-size: .95rem; }
+.inv-title { margin: 0 0 14px; font-size: clamp(2.9rem, 14vw, 4.1rem); line-height: .98; color: var(--nila-ink); letter-spacing: .005em;
+  text-shadow: 3px 3px 0 var(--cabai); transform: rotate(-2.5deg); transform-origin: left center; }
+.inv-body { margin: 0; max-width: 36ch; font-size: 1rem; line-height: 1.55; text-wrap: pretty; }
+.inv-when { margin: 8px 0 0; font-size: .88rem; font-weight: 700; opacity: .78; }
+
+.inv-actions { margin-top: 20px; display: grid; gap: 10px; }
+.inv-actions .btn { margin: 0; }
+.btn.inv-primary { min-height: 56px; border: 0; border-radius: 10px; background: var(--nila-ink); color: var(--kunyit); font-size: 1.08rem; font-weight: 800;
+  box-shadow: 0 5px 0 #070b1c; transition: transform .1s, box-shadow .1s; }
+.btn.inv-primary:hover:not(:disabled) { background: #1b2450; }
+.btn.inv-primary:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 2px 0 #070b1c; }
+.inv-vis { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.invite .seg { background: transparent; border: 1.5px solid rgba(20,27,56,.5); }
+.invite .seg-btn { color: rgba(20,27,56,.75); min-height: 38px; font-size: .84rem; }
+.invite .seg-btn[aria-checked=true] { color: var(--kunyit); }
+.invite .seg-ink { background: var(--nila-ink); border: 0; }
+.inv-help { margin: 0; font-size: .8rem; opacity: .8; flex: 1 1 140px; }
+.inv-join { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; margin-top: 4px; }
+.invite .code-input { min-height: 52px; border: 2px solid var(--nila-ink); border-radius: 10px; background: rgba(255,255,255,.3); color: var(--nila-ink); font-size: 1.15rem; font-weight: 800; letter-spacing: .32em; }
+.invite .code-input::placeholder { color: rgba(20,27,56,.45); letter-spacing: .06em; font-weight: 600; }
+.invite .code-input:focus { outline: none; background: rgba(255,255,255,.5); }
+.btn.inv-secondary { width: auto; min-height: 52px; padding: 0 18px; border: 2px solid var(--nila-ink); border-radius: 10px; background: transparent; color: var(--nila-ink); font-weight: 800; }
+.btn.inv-secondary:hover:not(:disabled) { background: rgba(20,27,56,.08); }
+.inv-practice { justify-self: start; color: var(--nila-ink); font-weight: 700; font-size: .92rem; text-decoration-color: rgba(20,27,56,.45); min-height: 44px; }
+.invite .err { margin: 0; min-height: 0; text-align: left; color: #8f1414; font-weight: 600; }
+.invite .err:empty { display: none; }
+.inv-foot { margin-top: 16px; padding-top: 14px; border-top: 1.5px dashed rgba(20,27,56,.35); display: grid; gap: 8px; }
+.inv-foot.hidden { display: none; }
+.inv-note { margin: 0; font-size: .84rem; line-height: 1.45; }
+.invite .btn.google { min-height: 46px; border-radius: 10px; box-shadow: none; border-color: rgba(20,27,56,.25); }
+.invite .btn.primary { min-height: 46px; border-radius: 10px; background: transparent; color: var(--nila-ink); border: 2px solid var(--nila-ink); box-shadow: none; font-weight: 800; }
+.invite .btn.primary:hover:not(:disabled) { background: rgba(20,27,56,.08); }
+
+@media (max-width: 370px) {
+  .invite { padding: 38px 26px 24px; }
+  .inv-stamp { width: 70px; height: 70px; right: 20px; } .inv-stamp span { font-size: .66rem; }
+  .inv-to { max-width: calc(100% - 78px); }
+}
+.cast { margin-top: 14px; }
+#home .tabs { margin-top: 18px; }
+
+/* ---- lobby mengikuti palet undangan ---- */
+#lobby .big-code { color: var(--kunyit); text-shadow: 3px 3px 0 var(--cabai); letter-spacing: .14em; }
+
+@media (min-width: 1024px) {
+  .home-grid { grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); gap: 56px; }
+  .invite-col { position: sticky; top: 72px; padding-top: 26px; }
+  .invite { padding: 50px 46px 32px; }
+  .inv-stamp { top: 38px; right: 40px; width: 96px; height: 96px; }
+  .inv-stamp span { font-size: .9rem; }
+  .home-main { padding-top: 36px; }
+  .home-main .rules-full { display: block; }
+}
+@media (min-width: 1024px) and (max-height: 860px) { .invite-col { position: static; } }
+body.reduce-motion .inv-name.nudge { animation: none; }
+
+/* label kecil: kalimat biasa, bukan huruf kapital berjarak */
+.eyebrow, .recap-h, .op-kicker, .bot-row-title, .rv-kicker { text-transform: none; letter-spacing: 0; }
+.eyebrow { font-size: .9rem; font-weight: 700; color: var(--brass-hi); }
+.recap-h { font-size: 1rem; font-weight: 800; color: var(--text); }
+.op-kicker { font-size: .86rem; color: var(--brass-hi); }
+.bot-row-title { font-size: .9rem; font-weight: 700; color: var(--text); }
+.btn.primary:disabled { opacity: .45; filter: saturate(.6); }

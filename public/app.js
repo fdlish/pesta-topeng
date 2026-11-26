@@ -87,7 +87,7 @@ function buildCast() { // barisan 20 tamu di layar awal (foto dirender bertahap)
 // ---------- lobby ----------
 $('#shareBtn').onclick = async () => {
   const link = `${location.origin}/?room=${state.code}`;
-  try { if (navigator.share) await navigator.share({ title: 'Pesta Topeng', text: `Ayo main Pesta Topeng! Kode room: ${state.code}`, url: link }); else { await navigator.clipboard.writeText(link); toast('Link undangan disalin!'); } }
+  try { if (navigator.share) await navigator.share({ title: 'Pesta Topeng', text: `${me ? me.name + ' mengundangmu' : 'Kamu diundang'} ke Pesta Topeng. Kode room: ${state.code}`, url: link }); else { await navigator.clipboard.writeText(link); toast('Link undangan disalin!'); } }
   catch { toast(link); }
 };
 $('#startBtn').onclick = () => emit('start_game');
@@ -206,7 +206,7 @@ function renderOrder() {
   const o = s.order, domIdx = id => [...$('#opList').children].findIndex(li => li.dataset.id === id);
   let alive = s.players.filter(p => p.alive);
   if (finishing) alive = alive.filter(p => o.last[p.id]).sort((a, b) => domIdx(a.id) - domIdx(b.id)); // jangan lompat urutan dulu
-  $('#opKicker').textContent = o.round > 1 ? `LEMPAR ULANG · RONDE ${o.round}` : 'URUTAN GILIRAN';
+  $('#opKicker').textContent = o.round > 1 ? `Lempar ulang, ronde ${o.round}` : 'Urutan giliran';
   $('#opTitle').textContent = o.round > 1 ? 'Seri! Lempar lagi' : 'Siapa jalan duluan?';
   $('#opSub').textContent = o.round > 1 ? 'Hanya pemain yang seri yang melempar ulang.' : 'Semua pemain melempar 2 dadu. Total tertinggi jalan pertama.';
   const list = $('#opList'); const rows = new Map([...list.children].map(li => [li.dataset.id, li]));
@@ -237,7 +237,7 @@ function showOrderDone() {
   const show = () => {
     orderFinishing = false;
     panel.classList.remove('hidden'); panel.classList.add('done');
-    $('#opKicker').textContent = 'URUTAN GILIRAN'; $('#opTitle').textContent = `${pname(o.done[0].id)} jalan duluan!`; $('#opSub').textContent = 'Giliran berjalan sesuai urutan ini.';
+    $('#opKicker').textContent = 'Urutan giliran'; $('#opTitle').textContent = `${pname(o.done[0].id)} jalan duluan!`; $('#opSub').textContent = 'Giliran berjalan sesuai urutan ini.';
     list.replaceChildren(...o.done.map(d => {
       const li = el('li', 'op-row final' + (d.id === me.id ? ' me' : ''));
       const who = el('span', 'op-who'); who.append(el('span', `place p${Math.min(d.pos, 4)}`, String(d.pos)), el('b', null, pname(d.id) + (d.id === me.id ? ' (kamu)' : '')));
@@ -339,7 +339,7 @@ function renderBotRow(isHost) {
   row.dataset.k = k; row.replaceChildren();
   row.classList.toggle('hidden', !isHost || full);
   if (!isHost || full) return;
-  row.append(el('p', 'bot-row-title', 'Tambah bot'));
+  row.append(el('p', 'bot-row-title', 'Kursi kosong? Isi dengan bot'));
   const grid = el('div', 'bot-grid');
   for (const [id, label, desc] of BOT_PICK) {
     const b = el('button', 'bot-pick'); b.type = 'button';
@@ -355,11 +355,11 @@ function renderVisRow(isHost) {
   if (row.dataset.k === `${isHost}:${pub}`) return;
   row.dataset.k = `${isHost}:${pub}`;
   row.replaceChildren();
-  const badge = el('span', 'vis-badge ' + (pub ? 'pub' : 'priv'), pub ? 'Room publik · tampil di lobby' : 'Room privat · hanya lewat kode');
+  const badge = el('span', 'vis-badge ' + (pub ? 'pub' : 'priv'), pub ? 'Terbuka: tampil di daftar Gabung' : 'Pakai kode: hanya yang punya kode bisa masuk');
   row.append(badge);
   if (isHost) {
-    const b = el('button', 'link-btn', pub ? 'Jadikan privat' : 'Jadikan publik');
-    b.onclick = () => emit('set_visibility', { visibility: pub ? 'private' : 'public' }).then(r => r.ok && toast(pub ? 'Room sekarang privat' : 'Room sekarang tampil di lobby'));
+    const b = el('button', 'link-btn', pub ? 'Ubah ke pakai kode' : 'Ubah ke terbuka');
+    b.onclick = () => emit('set_visibility', { visibility: pub ? 'private' : 'public' }).then(r => r.ok && toast(pub ? 'Pesta sekarang khusus yang punya kode' : 'Pesta sekarang tampil di daftar Gabung'));
     row.append(b);
   }
 }
@@ -648,16 +648,16 @@ function showReveal(ev, done) {
   const pic = el('div', 'rv-portrait'); const im = el('img'); im.src = getPortrait(c.id); im.alt = `Foto ${c.name}`; pic.append(im);
   let kicker, title, line;
   if (ev.type === 'eliminated') {
-    kicker = ev.self ? 'SENDIRIAN!' : 'TOPENG TERBUKA!';
+    kicker = ev.self ? 'Sendirian!' : 'Topeng terbuka!';
     title = isMe ? 'Kamu tersingkir' : `${victim ? victim.name : '?'} tersingkir`;
     line = ev.self ? `Ketahuan sendirian. Ternyata dia adalah` : `${pname(ev.by)} membuka topeng. Ternyata dia adalah`;
     if (isMe) { A.sfx.lose(); vibrate([80, 60, 160]); } else { A.sfx.unmask(); vibrate(60); }
     A.say(['unmask', isMe ? 'you_out' : `c-${c.id}`], { prio: 2, ttl: 8000 });
     board && board.shake(0.16, 0.6);
   } else if (ev.type === 'killed') {
-    kicker = 'HANYA TAMU BIASA'; title = 'Salah sasaran!'; line = `${pname(ev.by)} membuka topeng. Ternyata hanya`; A.sfx.poof(); A.say(['guest', `c-${c.id}`], { prio: 2, ttl: 8000 }); board && board.shake(0.06, 0.35);
+    kicker = 'Hanya tamu biasa'; title = 'Salah sasaran!'; line = `${pname(ev.by)} membuka topeng. Ternyata hanya`; A.sfx.poof(); A.say(['guest', `c-${c.id}`], { prio: 2, ttl: 8000 }); board && board.shake(0.06, 0.35);
   } else {
-    kicker = 'KARTU DIBUKA'; title = `${pname(ev.by)} membuka kartu`; line = 'Tamu ini disuruh pulang dari pesta:'; A.sfx.card(); A.say(['card', `c-${c.id}`], { prio: 2, ttl: 8000 });
+    kicker = 'Kartu dibuka'; title = `${pname(ev.by)} membuka kartu`; line = 'Tamu ini disuruh pulang dari pesta:'; A.sfx.card(); A.say(['card', `c-${c.id}`], { prio: 2, ttl: 8000 });
   }
   front.append(el('p', 'rv-kicker', kicker), pic, el('h3', 'rv-title', title), el('p', 'rv-line', line), el('p', 'rv-role', c.name.toUpperCase()));
   if (ev.room && META.roomLabel[ev.room]) { // pulau tempat topeng dibuka / tamu pulang
@@ -789,7 +789,7 @@ setInterval(() => {
 
 // ---------- boot ----------
 const fontsReady = Promise.race([
-  Promise.all(['700 64px "Playfair Display"', '400 16px Inter', '600 16px Inter'].map(f => document.fonts.load(f).catch(() => null))),
+  Promise.all(['400 64px Shrikhand', '800 64px "Plus Jakarta Sans"', '500 16px "Plus Jakarta Sans"', '600 16px "Plus Jakarta Sans"'].map(f => document.fonts.load(f).catch(() => null))),
   new Promise(r => setTimeout(r, 2500)),
 ]);
 Promise.all([fetch('/meta').then(r => r.json()), fetch('/config').then(r => r.json()), fontsReady]).then(async ([m, config]) => {

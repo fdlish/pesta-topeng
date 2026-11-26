@@ -20,6 +20,27 @@ const EMPTY_ROOM_MS = 10 * 60000;
 
 const app = express();
 app.use('/vo', express.static('public/vo', { maxAge: '7d' }));
+// Halaman utama dengan pratinjau undangan (WhatsApp/Telegram/X) yang menyebut kode room bila ada.
+const fs = require('fs');
+const INDEX_TPL = () => fs.readFileSync(require('path').join(__dirname, 'public', 'index.html'), 'utf8');
+let indexCache = null;
+const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+function sendIndex(req, res) {
+  if (!indexCache || process.env.NODE_ENV !== 'production') indexCache = INDEX_TPL();
+  const proto = String(req.headers['x-forwarded-proto'] || req.protocol).split(',')[0];
+  const origin = `${proto}://${req.get('host')}`;
+  const code = String(req.query.room || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 4);
+  const room = code && rooms.get(code);
+  const host = room && G.player(room.game, room.hostId);
+  const title = code ? `Undangan Pesta Topeng: kode ${code}` : 'Pesta Topeng: game deduksi bertopeng';
+  const desc = code
+    ? `${host ? host.name + ' mengundangmu' : 'Kamu diundang'} ke Pesta Topeng. Ketuk untuk masuk room ${code}, tanpa perlu instal apa pun.`
+    : 'Dua puluh tamu bertopeng di lima pulau, dan salah satunya kamu. Main 3 sampai 8 orang langsung di browser.';
+  res.set('Cache-Control', 'no-cache').type('html').send(indexCache
+    .replaceAll('%OG_TITLE%', esc(title)).replaceAll('%OG_DESC%', esc(desc))
+    .replaceAll('%OG_ORIGIN%', esc(origin)).replaceAll('%OG_URL%', esc(origin + req.originalUrl)));
+}
+app.get(['/', '/index.html'], sendIndex);
 app.use(express.static('public'));
 app.use('/vendor/fonts', express.static('node_modules/@fontsource', { maxAge: '30d' }));
 app.use('/vendor/three', express.static('node_modules/three', { maxAge: '7d' }));
