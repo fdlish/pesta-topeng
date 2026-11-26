@@ -229,7 +229,7 @@ export class Board3D {
     return canvasTex(W, H, (g, w, h) => {
       THEMES[room](g, w, h, u);
       const vig = g.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.3, w / 2, h / 2, Math.max(w, h) * 0.65);
-      vig.addColorStop(0, 'rgba(0,0,0,0)'); vig.addColorStop(1, 'rgba(0,0,0,.22)');
+      vig.addColorStop(0, 'rgba(0,0,0,0)'); vig.addColorStop(1, 'rgba(0,0,0,.16)');
       g.fillStyle = vig; g.fillRect(0, 0, w, h);
       const ink = room === 'papua' ? 'rgba(40,70,100,.5)' : 'rgba(255,246,225,.6)';
       g.strokeStyle = ink; g.lineWidth = 3 * k; const m = 26 * k; g.strokeRect(m, m, w - m * 2, h - m * 2);
@@ -244,10 +244,10 @@ export class Board3D {
       g.textAlign = 'center'; g.textBaseline = 'middle';
       g.save();
       g.lineJoin = 'round'; g.lineWidth = Math.max(3, fs * 0.05);
-      g.strokeStyle = light ? 'rgba(255,255,255,.55)' : 'rgba(10,14,22,.38)';
+      g.strokeStyle = light ? 'rgba(255,255,255,.4)' : 'rgba(10,14,22,.2)';
       if ('letterSpacing' in g) g.letterSpacing = `${sp}px`;
       g.strokeText(label, w / 2 + sp / 2, h / 2);
-      g.fillStyle = light ? 'rgba(30,52,80,.42)' : 'rgba(255,248,232,.5)';
+      g.fillStyle = light ? 'rgba(30,52,80,.22)' : 'rgba(255,248,232,.26)';
       g.fillText(label, w / 2 + sp / 2, h / 2);
       g.restore();
     });

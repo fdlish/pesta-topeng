@@ -9,90 +9,75 @@ function seeded(seed) { let s = seed; return () => (s = (s * 16807) % 2147483647
 // ================= ilustrasi lantai =================
 // g: konteks canvas, w/h: ukuran px, u: px per satuan dunia
 export const THEMES = {
-  // SUMATERA — tanah merah perkebunan: baris pohon sawit + jalan kebun berkelok
+  // Prinsip: lantai = latar tenang. Warna dasar rata + tekstur halus berkontras rendah,
+  // ciri khas pulau hanya tipis & di pinggir, supaya bidak di atasnya tetap paling menonjol.
+
+  // SUMATERA — tanah merah perkebunan: alur tanam samar + jalan kebun tipis
   sumatera(g, w, h, u) {
-    const grad = g.createLinearGradient(0, 0, w, h); grad.addColorStop(0, '#cc4a3c'); grad.addColorStop(1, '#a8352f');
+    const grad = g.createLinearGradient(0, 0, w, h); grad.addColorStop(0, '#c9473a'); grad.addColorStop(1, '#b43c33');
     g.fillStyle = grad; g.fillRect(0, 0, w, h);
-    for (let i = 0; i < 2600; i++) { g.fillStyle = Math.random() < 0.5 ? 'rgba(255,200,160,.10)' : 'rgba(70,15,8,.14)'; g.fillRect(Math.random() * w, Math.random() * h, 2, 2); }
-    g.strokeStyle = 'rgba(120,30,20,.35)'; g.lineWidth = 0.03 * u; // alur tanam
-    for (let y = 0.35 * u; y < h; y += 0.55 * u) { g.beginPath(); g.moveTo(0, y); for (let x = 0; x <= w; x += 10) g.lineTo(x, y + Math.sin(x / (1.3 * u)) * 0.06 * u); g.stroke(); }
-    g.strokeStyle = 'rgba(240,190,150,.35)'; g.lineWidth = 0.09 * u; g.lineCap = 'round'; // jalan kebun
-    g.beginPath(); g.moveTo(-10, h * 0.78); g.bezierCurveTo(w * 0.3, h * 0.55, w * 0.55, h * 0.95, w + 10, h * 0.62); g.stroke();
-    for (let y = 0.35 * u, r = 0; y < h; y += 0.55 * u, r++) for (let x = (r % 2 ? 0.45 : 0.18) * u; x < w; x += 0.62 * u) if (Math.random() < 0.55) palmCrown(g, x, y, u * R(0.8, 1.05));
+    grain(g, w, h, 'rgba(255,210,180,.05)', 'rgba(70,15,8,.06)');
+    g.strokeStyle = 'rgba(110,25,18,.12)'; g.lineWidth = 0.025 * u;
+    for (let y = 0.5 * u; y < h; y += 0.7 * u) { g.beginPath(); g.moveTo(0, y); for (let x = 0; x <= w; x += 12) g.lineTo(x, y + Math.sin(x / (1.4 * u)) * 0.05 * u); g.stroke(); }
+    g.strokeStyle = 'rgba(240,190,150,.14)'; g.lineWidth = 0.07 * u; g.lineCap = 'round';
+    g.beginPath(); g.moveTo(-10, h * 0.86); g.bezierCurveTo(w * 0.3, h * 0.74, w * 0.6, h * 0.98, w + 10, h * 0.8); g.stroke();
   },
 
-  // KALIMANTAN — kanopi hutan hujan tropis + sungai besar berkelok
+  // KALIMANTAN — hijau hutan dengan bayangan kanopi lembut + sungai tipis di sisi kiri
   kalimantan(g, w, h, u) {
-    g.fillStyle = '#25784a'; g.fillRect(0, 0, w, h);
-    const greens = ['#2f8f57', '#3a9c5f', '#24804a', '#47a86a', '#1f6e40'];
-    for (let i = 0; i < 520; i++) { // gumpalan kanopi
-      const x = Math.random() * w, y = Math.random() * h, r = R(0.12, 0.3) * u;
-      g.fillStyle = 'rgba(10,40,20,.25)'; g.beginPath(); g.arc(x + r * 0.25, y + r * 0.25, r, 0, Math.PI * 2); g.fill();
-      g.fillStyle = greens[i % greens.length]; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
-      g.fillStyle = 'rgba(190,240,170,.18)'; g.beginPath(); g.arc(x - r * 0.3, y - r * 0.3, r * 0.45, 0, Math.PI * 2); g.fill();
-    }
-    g.lineCap = 'round'; // sungai
-    const river = () => { g.beginPath(); g.moveTo(w * 0.12, -10); g.bezierCurveTo(w * 0.05, h * 0.4, w * 0.55, h * 0.35, w * 0.45, h * 0.7); g.bezierCurveTo(w * 0.4, h * 0.9, w * 0.7, h * 0.95, w * 0.78, h + 10); };
-    g.strokeStyle = '#7a5b33'; g.lineWidth = 0.34 * u; river(); g.stroke();
-    g.strokeStyle = '#4f9aa6'; g.lineWidth = 0.24 * u; river(); g.stroke();
-    g.strokeStyle = 'rgba(220,250,255,.35)'; g.lineWidth = 0.03 * u; g.setLineDash([0.12 * u, 0.2 * u]); river(); g.stroke(); g.setLineDash([]);
+    g.fillStyle = '#2b8752'; g.fillRect(0, 0, w, h);
+    softBlobs(g, w, h, u, ['rgba(20,70,40,.10)', 'rgba(120,200,140,.07)'], 26);
+    g.lineCap = 'round';
+    const river = () => { g.beginPath(); g.moveTo(w * 0.08, -10); g.bezierCurveTo(w * 0.02, h * 0.35, w * 0.16, h * 0.6, w * 0.06, h + 10); };
+    g.strokeStyle = 'rgba(80,150,165,.35)'; g.lineWidth = 0.14 * u; river(); g.stroke();
+    g.strokeStyle = 'rgba(220,250,255,.12)'; g.lineWidth = 0.02 * u; river(); g.stroke();
   },
 
-  // JAWA — kain batik kawung biru indigo
+  // JAWA — batik kawung biru indigo, nada-ke-nada (tanpa garis krem terang)
   jawa(g, w, h, u) {
-    const grad = g.createLinearGradient(0, 0, 0, h); grad.addColorStop(0, '#244c92'); grad.addColorStop(1, '#1b3a74');
-    g.fillStyle = grad; g.fillRect(0, 0, w, h);
-    const step = 0.5 * u;
+    g.fillStyle = '#24498c'; g.fillRect(0, 0, w, h);
+    const step = 0.7 * u;
+    g.fillStyle = 'rgba(120,160,230,.10)';
     for (let y = 0, row = 0; y < h + step; y += step, row++) for (let x = (row % 2) * step / 2; x < w + step; x += step) {
-      g.save(); g.translate(x, y);
-      for (let k = 0; k < 4; k++) { // empat kelopak kawung
-        g.save(); g.rotate(Math.PI / 4 + k * Math.PI / 2); g.translate(step * 0.27, 0);
-        g.fillStyle = '#3c6cc0'; g.strokeStyle = 'rgba(243,234,215,.55)'; g.lineWidth = 0.018 * u;
-        g.beginPath(); g.ellipse(0, 0, step * 0.22, step * 0.13, 0, 0, Math.PI * 2); g.fill(); g.stroke();
-        g.fillStyle = 'rgba(243,234,215,.5)'; g.beginPath(); g.arc(step * 0.04, 0, step * 0.03, 0, Math.PI * 2); g.fill();
-        g.restore();
+      for (let k = 0; k < 4; k++) {
+        const a = Math.PI / 4 + k * Math.PI / 2;
+        g.beginPath(); g.ellipse(x + Math.cos(a) * step * 0.27, y + Math.sin(a) * step * 0.27, step * 0.21, step * 0.12, a, 0, Math.PI * 2); g.fill();
       }
-      g.fillStyle = 'rgba(243,234,215,.7)'; g.beginPath(); g.arc(0, 0, step * 0.04, 0, Math.PI * 2); g.fill();
-      g.restore();
     }
   },
 
-  // SULAWESI — pantai pasir keemasan, laut dangkal toska & karang
+  // SULAWESI — pasir keemasan rata + garis pantai toska tipis di tepi bawah
   sulawesi(g, w, h, u) {
-    const grad = g.createRadialGradient(w * 0.45, h * 0.4, 0.2 * u, w * 0.5, h * 0.5, w * 0.7);
-    grad.addColorStop(0, '#f0c75e'); grad.addColorStop(1, '#cf9a30');
-    g.fillStyle = grad; g.fillRect(0, 0, w, h);
-    for (let i = 0; i < 240; i++) { // riak pasir
-      const x = Math.random() * w, y = Math.random() * h * 0.8, r = R(0.15, 0.4) * u;
-      g.strokeStyle = 'rgba(150,95,25,.2)'; g.lineWidth = 0.016 * u; g.beginPath(); g.arc(x, y, r, Math.PI * 1.15, Math.PI * 1.85); g.stroke();
+    g.fillStyle = '#e1b448'; g.fillRect(0, 0, w, h);
+    grain(g, w, h, 'rgba(255,240,200,.06)', 'rgba(140,90,20,.06)');
+    for (let i = 0; i < 40; i++) {
+      const x = Math.random() * w, y = Math.random() * h * 0.8, r = R(0.2, 0.45) * u;
+      g.strokeStyle = 'rgba(150,95,25,.08)'; g.lineWidth = 0.014 * u; g.beginPath(); g.arc(x, y, r, Math.PI * 1.2, Math.PI * 1.8); g.stroke();
     }
-    const shore = y0 => { g.beginPath(); g.moveTo(-10, h + 10); g.lineTo(-10, y0); for (let x = 0; x <= w + 10; x += 10) g.lineTo(x, y0 + Math.sin(x / (0.9 * u)) * 0.08 * u); g.lineTo(w + 10, h + 10); g.closePath(); };
-    g.fillStyle = 'rgba(74,190,190,.55)'; shore(h * 0.8); g.fill();     // laut dangkal
-    g.fillStyle = 'rgba(40,150,170,.55)'; shore(h * 0.9); g.fill();
-    g.strokeStyle = 'rgba(255,255,255,.75)'; g.lineWidth = 0.03 * u; shore(h * 0.8); g.stroke(); // buih
-    for (let i = 0; i < 26; i++) { g.fillStyle = ['#ff8a7a', '#f6b26b', '#e06c9f'][i % 3]; g.globalAlpha = 0.55; g.beginPath(); g.arc(Math.random() * w, h * R(0.84, 0.98), R(0.03, 0.06) * u, 0, Math.PI * 2); g.fill(); }
-    g.globalAlpha = 1;
+    const shore = y0 => { g.beginPath(); g.moveTo(-10, h + 10); g.lineTo(-10, y0); for (let x = 0; x <= w + 10; x += 12) g.lineTo(x, y0 + Math.sin(x / (1.1 * u)) * 0.05 * u); g.lineTo(w + 10, h + 10); g.closePath(); };
+    g.fillStyle = 'rgba(70,175,180,.35)'; shore(h * 0.9); g.fill();
+    g.strokeStyle = 'rgba(255,255,255,.3)'; g.lineWidth = 0.02 * u; shore(h * 0.9); g.stroke();
   },
 
-  // PAPUA — dataran tinggi bersalju Puncak Jaya: salju berkilau + punggung batu
+  // PAPUA — salju dataran tinggi: putih kebiruan dengan bayangan lereng yang sangat halus
   papua(g, w, h, u) {
-    const grad = g.createLinearGradient(0, 0, w, h); grad.addColorStop(0, '#f6fafd'); grad.addColorStop(1, '#d9e6ef');
+    const grad = g.createLinearGradient(0, 0, w, h); grad.addColorStop(0, '#eef4f8'); grad.addColorStop(1, '#dde8f0');
     g.fillStyle = grad; g.fillRect(0, 0, w, h);
-    for (let i = 0; i < 12; i++) { // bayangan lereng
-      const x = Math.random() * w, y = Math.random() * h, r = R(0.4, 1.1) * u;
-      const rg = g.createRadialGradient(x, y, 0, x, y, r); rg.addColorStop(0, 'rgba(140,170,195,.28)'); rg.addColorStop(1, 'rgba(140,170,195,0)');
-      g.fillStyle = rg; g.fillRect(x - r, y - r, r * 2, r * 2);
-    }
-    for (let i = 0; i < 7; i++) { // punggung batu yang menyembul dari salju
-      const x = Math.random() * w, y = Math.random() * h, len = R(0.5, 1.2) * u, a = R(-0.6, 0.6);
-      g.save(); g.translate(x, y); g.rotate(a);
-      g.fillStyle = 'rgba(110,118,128,.55)'; g.beginPath(); g.moveTo(-len / 2, 0);
-      for (let k = 0; k <= 8; k++) g.lineTo(-len / 2 + (k / 8) * len, -R(0.02, 0.09) * u);
-      g.lineTo(len / 2, 0.03 * u); g.closePath(); g.fill(); g.restore();
-    }
-    for (let i = 0; i < 700; i++) { g.fillStyle = 'rgba(255,255,255,.9)'; const sz = R(1, 3); g.fillRect(Math.random() * w, Math.random() * h, sz, sz); }
+    softBlobs(g, w, h, u, ['rgba(140,170,195,.10)'], 8);
   },
 };
+
+function grain(g, w, h, light, dark) { // butiran halus, hanya terasa dari dekat
+  const n = Math.round(w * h / 900);
+  for (let i = 0; i < n; i++) { g.fillStyle = i % 2 ? light : dark; g.fillRect(Math.random() * w, Math.random() * h, 2, 2); }
+}
+function softBlobs(g, w, h, u, cols, n) { // bercak gradasi lebar tanpa tepi tegas
+  for (let i = 0; i < n; i++) {
+    const x = Math.random() * w, y = Math.random() * h, r = R(0.5, 1.2) * u, c = cols[i % cols.length];
+    const rg = g.createRadialGradient(x, y, 0, x, y, r); rg.addColorStop(0, c); rg.addColorStop(1, c.replace(/[\d.]+\)$/, '0)'));
+    g.fillStyle = rg; g.fillRect(x - r, y - r, r * 2, r * 2);
+  }
+}
 
 function palmCrown(g, x, y, u) { // tajuk sawit dilihat dari atas
   g.fillStyle = 'rgba(60,15,8,.3)'; g.beginPath(); g.arc(x + 0.05 * u, y + 0.04 * u, 0.17 * u, 0, Math.PI * 2); g.fill();
