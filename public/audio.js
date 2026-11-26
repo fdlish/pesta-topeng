@@ -10,7 +10,7 @@ const store = {
 };
 
 let ctx = null, master, musicBus, sfxBus, delay, noise;
-const state = { music: store.get('pt-music', true), sfx: store.get('pt-sfx', true), intensity: 0, playing: false };
+const state = { music: store.get('pt-music', true), sfx: store.get('pt-sfx', true), voice: store.get('pt-voice', true), intensity: 0, playing: false };
 
 function build() {
   ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -208,6 +208,55 @@ export function setMusic(on) {
 export function setSfx(on) { state.sfx = !!on; store.set('pt-sfx', state.sfx); if (ctx) sfxBus.gain.setTargetAtTime(on ? 1 : 0, ctx.currentTime, 0.05); }
 export const isMusicOn = () => state.music;
 export const isSfxOn = () => state.sfx;
+
+// ================= narator (voice over) =================
+// Klip suara narator misterius (public/vo/*.mp3). Lewat sfxBus: tombol efek suara ikut membisukannya.
+// Antrean: kalimat tidak saling tumpuk; kalimat basi (terlalu lama mengantre) dibuang.
+let voiceBus = null, vPlaying = null, vBusy = false;
+const vBuf = new Map(), vQueue = [];
+function vbus() { if (!voiceBus) { voiceBus = ctx.createGain(); voiceBus.gain.value = state.voice ? 1.15 : 0; voiceBus.connect(sfxBus); } return voiceBus; }
+function loadVo(name) {
+  if (!vBuf.has(name)) vBuf.set(name, fetch(`/vo/${name}.mp3`).then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
+    .then(a => new Promise((res, rej) => ctx.decodeAudioData(a, res, rej))).catch(() => null));
+  return vBuf.get(name);
+}
+export function preloadVoice(names) { if (ctx && state.voice) names.forEach(loadVo); }
+function duck(on) { if (ctx && state.music) musicBus.gain.setTargetAtTime(on ? 0.1 : 0.32, ctx.currentTime, on ? 0.08 : 0.5); }
+async function pump() {
+  if (vBusy || !vQueue.length) return;
+  const item = vQueue.shift();
+  if (performance.now() - item.at > item.ttl) return pump(); // sudah basi
+  vBusy = true; duck(true);
+  for (const name of item.lines) {
+    const buf = await loadVo(name);
+    if (!buf || item.cancelled) continue;
+    await new Promise(res => {
+      const src = ctx.createBufferSource(); src.buffer = buf; src.connect(vbus());
+      vPlaying = { src, item }; src.onended = res; src.start(); (window.__voLog ||= []).push(name);
+    });
+    vPlaying = null;
+    if (!item.cancelled) await new Promise(r => setTimeout(r, 120));
+  }
+  vBusy = false;
+  if (!vQueue.length) duck(false);
+  pump();
+}
+// say(lines, { prio, ttl }) — prio 0: info ringan (pulau, giliran, waktu); 1: momen permainan; 2: buka topeng & akhir pesta.
+// Kalimat baru menyingkirkan antrean berprioritas lebih rendah & memotong yang sedang diputar bila prioritasnya lebih rendah.
+// Info ringan yang menumpuk cukup diwakili yang terbaru.
+export function say(lines, { prio = 1, ttl = 4500 } = {}) {
+  if (!ctx || !state.voice || !state.sfx || ctx.state !== 'running') return;
+  const item = { lines: [].concat(lines), at: performance.now(), ttl, prio, cancelled: false };
+  for (let i = vQueue.length - 1; i >= 0; i--) if (vQueue[i].prio < prio || (prio === 0 && vQueue[i].prio === 0)) vQueue.splice(i, 1);
+  if (vPlaying && vPlaying.item.prio < prio) { vPlaying.item.cancelled = true; try { vPlaying.src.stop(); } catch {} }
+  vQueue.push(item); pump();
+}
+export function setVoice(on) {
+  state.voice = !!on; store.set('pt-voice', state.voice);
+  if (voiceBus) voiceBus.gain.setTargetAtTime(on ? 1.15 : 0, ctx.currentTime, 0.05);
+  if (!on) { vQueue.length = 0; if (vPlaying) { vPlaying.item.cancelled = true; try { vPlaying.src.stop(); } catch {} } }
+}
+export const isVoiceOn = () => state.voice;
 
 // hentikan penjadwalan saat tab disembunyikan (hemat baterai), lanjut saat kembali
 document.addEventListener('visibilitychange', () => {

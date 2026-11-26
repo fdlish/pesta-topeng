@@ -19,6 +19,7 @@ const LOBBY_GRACE_MS = 30000;   // pemain offline di lobby dihapus setelah ini
 const EMPTY_ROOM_MS = 10 * 60000;
 
 const app = express();
+app.use('/vo', express.static('public/vo', { maxAge: '7d' }));
 app.use(express.static('public'));
 app.use('/vendor/fonts', express.static('node_modules/@fontsource', { maxAge: '30d' }));
 app.use('/vendor/three', express.static('node_modules/three', { maxAge: '7d' }));

@@ -63,6 +63,7 @@ document.addEventListener('click', e => { if (e.target.closest('button:not(.roll
 function syncAudioBtns() {
   for (const [id, on] of [['#musicBtn', A.isMusicOn()], ['#sfxBtn', A.isSfxOn()]]) { const b = $(id); b.setAttribute('aria-pressed', String(on)); b.classList.toggle('off', !on); }
   const dm = document.getElementById('drawerMusicState'); if (dm) dm.textContent = A.isMusicOn() ? 'Nyala' : 'Mati';
+  const dv = document.getElementById('drawerVoiceState'); if (dv) dv.textContent = A.isVoiceOn() ? 'Nyala' : 'Mati';
 }
 $('#musicBtn').onclick = () => { A.setMusic(!A.isMusicOn()); syncAudioBtns(); toast(A.isMusicOn() ? 'Musik latar menyala' : 'Musik latar dimatikan'); };
 $('#sfxBtn').onclick = () => { A.setSfx(!A.isSfxOn()); syncAudioBtns(); toast(A.isSfxOn() ? 'Efek suara menyala' : 'Efek suara dimatikan'); };
@@ -139,10 +140,11 @@ socket.on('state', s => {
   if (s.phase !== 'PLAYING' || s.step !== 'MOVE') selected = null;
   if (s.step !== 'BLACK') killSel = null;
   if (prevPhase !== 'GAME_OVER' && s.phase === 'GAME_OVER') { overlayClosed = false; celebrated = false; }
-  if (s.phase === 'ORDER' && prevPhase === 'LOBBY') { showId = false; introPending = true; A.sfx.start(); orderSeen = {}; orderDoneShown = false; orderFinishing = false; clearTimeout(orderHideT); orderHideT = null; }
+  if (s.phase === 'ORDER' && prevPhase === 'LOBBY') { showId = false; introPending = true; A.sfx.start(); orderSeen = {}; orderDoneShown = false; orderFinishing = false; clearTimeout(orderHideT); orderHideT = null; A.preloadVoice(voAll()); setTimeout(() => A.say('order', { ttl: 8000 }), 900); }
+  if (s.phase === 'ORDER' && prev && prev.phase === 'ORDER' && s.order && prev.order && s.order.round > prev.order.round) A.say('tie', { prio: 2 });
   if (s.phase === 'PLAYING' && prevPhase !== 'PLAYING') {
     showId = false;
-    if (prevPhase === 'LOBBY') { introPending = true; A.sfx.start(); setTimeout(() => banner('PESTA DIMULAI', 'Temukan topeng lawan!'), 50); }
+    if (prevPhase === 'LOBBY') { introPending = true; A.sfx.start(); A.preloadVoice(voAll()); setTimeout(() => { banner('PESTA DIMULAI', 'Temukan topeng lawan!'); A.say('start'); }, 50); }
     if (prevPhase === 'ORDER') showOrderDone();
   }
   if (s.phase === 'LOBBY' && prevPhase === 'GAME_OVER') { stopConfetti(); Home.clearReward(); }
@@ -153,16 +155,18 @@ socket.on('state', s => {
   // giliran berganti
   if (s.turnEndsAt && (!prev || prev.turnEndsAt !== s.turnEndsAt)) turnStartAt = Date.now() + clockOffset;
   if (s.phase === 'PLAYING' && s.turnPlayerId !== prevTurnId) {
-    if (me && s.turnPlayerId === me.id && prevTurnId !== null) setTimeout(() => { if (state.turnPlayerId === me.id) { banner('GILIRANMU', 'Lempar dadu!'); A.sfx.turn(); vibrate([40, 60, 40]); } }, 700);
+    if (me && s.turnPlayerId === me.id && prevTurnId !== null) setTimeout(() => { if (state.turnPlayerId === me.id) { banner('GILIRANMU', 'Lempar dadu!'); A.sfx.turn(); A.say('turn', { prio: 0, ttl: 6000 }); vibrate([40, 60, 40]); } }, 700);
     prevTurnId = s.turnPlayerId;
   }
   // event dramatis (buka topeng / kartu) — antrikan, tampilkan setelah dadu berhenti
   if (s.lastEvent && s.lastEvent.id !== seenEventId) {
     if (seenEventId !== null && ['eliminated', 'killed', 'left'].includes(s.lastEvent.type)) fxQueue.push(s.lastEvent);
-    if (seenEventId !== null && s.lastEvent.type === 'forfeit' && s.lastEvent.by !== me?.id) { toast(`${pname(s.lastEvent.by)} keluar dari pesta`); A.sfx.poof && A.sfx.poof(); }
+    if (seenEventId !== null && s.lastEvent.type === 'forfeit' && s.lastEvent.by !== me?.id) { toast(`${pname(s.lastEvent.by)} keluar dari pesta`); A.sfx.poof && A.sfx.poof(); A.say('forfeit', { ttl: 8000 }); }
     seenEventId = s.lastEvent.id;
   }
-  A.setIntensity(s.phase === 'PLAYING' && s.players.filter(p => p.alive).length <= 2 ? 1 : 0);
+  const aliveN = s.players.filter(p => p.alive).length;
+  if (s.phase === 'PLAYING' && prev && prev.phase === 'PLAYING' && aliveN === 2 && prev.players.filter(p => p.alive).length > 2) A.say('last_two', { ttl: 15000 });
+  A.setIntensity(s.phase === 'PLAYING' && aliveN <= 2 ? 1 : 0);
   render();
   processFx();
 });
@@ -172,6 +176,9 @@ setTimeout(() => { if (!socket.connected) $('#conn').classList.remove('hidden');
 
 // ---------- render ----------
 // ---------- lempar 2 dadu: urutan giliran ----------
+let voTimerKey = null;
+const VO_BASE = ['order', 'tie', 'order_done', 'start', 'turn', 'black', 'unmask', 'guest', 'card', 'forfeit', 'last_two', 'timer', 'you_out', 'gameover', 'win', 'i-sumatera', 'i-kalimantan', 'i-jawa', 'i-sulawesi', 'i-papua'];
+const voAll = () => VO_BASE.concat((META ? META.characters : []).map(c => `c-${c.id}`));
 let orderSeen = {}, orderDoneShown = false, orderHideT = null, myOrderRolling = false, orderFinishing = false;
 const PIPS = { 1: [[1, 1]], 2: [[0, 0], [2, 2]], 3: [[0, 0], [1, 1], [2, 2]], 4: [[0, 0], [2, 0], [0, 2], [2, 2]], 5: [[0, 0], [2, 0], [1, 1], [0, 2], [2, 2]], 6: [[0, 0], [2, 0], [0, 1], [2, 1], [0, 2], [2, 2]] };
 function dieFace(n) {
@@ -233,9 +240,9 @@ function showOrderDone() {
       li.append(who, el('span', 'op-total', d.scores.join(' → ')));
       return li;
     }));
-    A.sfx.turn && A.sfx.turn();
+    A.sfx.turn && A.sfx.turn(); A.say('order_done', { prio: 2 });
     clearTimeout(orderHideT);
-    orderHideT = setTimeout(() => { orderHideT = null; panel.classList.add('hidden'); banner('PESTA DIMULAI', `${pname(o.done[0].id)} jalan duluan`); }, 2800);
+    orderHideT = setTimeout(() => { orderHideT = null; panel.classList.add('hidden'); banner('PESTA DIMULAI', `${pname(o.done[0].id)} jalan duluan`); A.say('start', { ttl: 6000 }); }, 2800);
   };
   // tunggu animasi dadu terakhir selesai
   setTimeout(show, document.body.classList.contains('reduce-motion') ? 200 : 900);
@@ -353,6 +360,7 @@ function initBoard() {
       const b = $('#rollBanner'), d = state && state.die;
       if (d) { b.textContent = DIE_LABEL[d]; b.className = `roll-banner die-${d}`; clearTimeout(b.t); b.t = setTimeout(() => b.classList.add('hidden'), 1700); }
       if (d === 'hitam') vibrate([30, 40, 30]);
+      if (d) A.say(d === 'hitam' ? 'black' : `i-${d}`, { prio: d === 'hitam' ? 1 : 0, ttl: 2500 });
       renderGame(); processFx();
     },
   });
@@ -390,6 +398,7 @@ $('#exitDialog').addEventListener('keydown', e => {
 });
 $('#exitDialog').addEventListener('click', e => { if (e.target.id === 'exitDialog') closeExit(); });
 $('#drawerMusic').onclick = () => $('#musicBtn').click();
+$('#drawerVoice').onclick = () => { A.setVoice(!A.isVoiceOn()); syncAudioBtns(); toast(A.isVoiceOn() ? 'Narator menyala' : 'Narator dimatikan'); if (A.isVoiceOn()) A.preloadVoice(voAll()); };
 $('#drawerClose').onclick = () => $('#drawer').classList.add('hidden');
 
 // tombol "Kurangi animasi" (pilihan pemain, disimpan di perangkat)
@@ -513,10 +522,11 @@ function showReveal(ev, done) {
     title = isMe ? 'Kamu tersingkir' : `${victim ? victim.name : '?'} tersingkir`;
     line = ev.self ? `Ketahuan sendirian. Ternyata dia adalah` : `${pname(ev.by)} membuka topeng. Ternyata dia adalah`;
     if (isMe) { A.sfx.lose(); vibrate([80, 60, 160]); } else { A.sfx.unmask(); vibrate(60); }
+    A.say(['unmask', isMe ? 'you_out' : `c-${c.id}`], { prio: 2, ttl: 8000 });
   } else if (ev.type === 'killed') {
-    kicker = 'HANYA TAMU BIASA'; title = 'Salah sasaran!'; line = `${pname(ev.by)} membuka topeng. Ternyata hanya`; A.sfx.poof();
+    kicker = 'HANYA TAMU BIASA'; title = 'Salah sasaran!'; line = `${pname(ev.by)} membuka topeng. Ternyata hanya`; A.sfx.poof(); A.say(['guest', `c-${c.id}`], { prio: 2, ttl: 8000 });
   } else {
-    kicker = 'KARTU DIBUKA'; title = `${pname(ev.by)} membuka kartu`; line = 'Tamu ini disuruh pulang dari pesta:'; A.sfx.card();
+    kicker = 'KARTU DIBUKA'; title = `${pname(ev.by)} membuka kartu`; line = 'Tamu ini disuruh pulang dari pesta:'; A.sfx.card(); A.say(['card', `c-${c.id}`], { prio: 2, ttl: 8000 });
   }
   front.append(el('p', 'rv-kicker', kicker), pic, el('h3', 'rv-title', title), el('p', 'rv-line', line), el('p', 'rv-role', c.name.toUpperCase()));
   if (ev.room && META.roomLabel[ev.room]) { // pulau tempat topeng dibuka / tamu pulang
@@ -558,7 +568,7 @@ function renderOverlay() {
   }));
   Home.renderReward(s, me.id);
   $('#againBtn').classList.toggle('hidden', me.id !== s.hostId);
-  if (!celebrated) { celebrated = true; A.sfx.win(); if (w && w.id === me.id) vibrate([60, 40, 60, 40, 200]); startConfetti(); }
+  if (!celebrated) { celebrated = true; A.sfx.win(); A.say(w && w.id === me.id ? ['gameover', 'win'] : ['gameover'], { prio: 2, ttl: 12000 }); if (w && w.id === me.id) vibrate([60, 40, 60, 40, 200]); startConfetti(); }
 }
 function startConfetti() {
   if (document.body.classList.contains('reduce-motion')) return;
@@ -598,6 +608,7 @@ setInterval(() => {
   t.classList.toggle('urgent', sec <= 10);
   t.setAttribute('aria-label', `Sisa waktu ${sec} detik`);
   if (me && state.turnPlayerId === me.id && sec <= 5 && sec > 0 && sec !== lastTick) { lastTick = sec; A.sfx.tick(sec <= 3); }
+  if (me && state.phase === 'PLAYING' && state.turnPlayerId === me.id && sec === 10 && voTimerKey !== state.turnEndsAt) { voTimerKey = state.turnEndsAt; A.say('timer', { prio: 0 }); }
 }, 200);
 
 // ---------- boot ----------
