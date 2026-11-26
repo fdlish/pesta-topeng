@@ -27,7 +27,7 @@ const ICON = {
 };
 const MASK_SVG = '<svg class="mask-svg" viewBox="0 0 64 40" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M2 7C10 1 22 2 32 10C42 2 54 1 62 7C64 22 56 34 44 34C38 34 35 27 32 27C29 27 26 34 20 34C8 34 0 22 2 7ZM12 17C14 13 21 13 25 17C21 21 15 21 12 17ZM39 17C43 13 50 13 52 17C49 21 43 21 39 17Z"/></svg>';
 function btnWithIcon(cls, icon, text) { const b = el('button', cls); b.innerHTML = icon; b.append(el('span', null, text)); return b; }
-const DIE_LABEL = { asia: 'ASIA', afrika: 'AFRIKA', eropa: 'EROPA', amerika: 'AMERIKA', antartika: 'ANTARTIKA', hitam: 'HITAM' };
+const DIE_LABEL = { papua: 'PAPUA', sulawesi: 'SULAWESI', jawa: 'JAWA', sumatera: 'SUMATERA', kalimantan: 'KALIMANTAN', hitam: 'HITAM' };
 
 // ---------- util ----------
 function toast(msg, kind) {
@@ -263,11 +263,11 @@ function initBoard() {
       toast(`${pname(ev.by)} memindahkan ${ch(ev.charId).name}: ${META.roomLabel[ev.from]} → ${META.roomLabel[ev.to]}`);
     },
     onCinematicLand() { A.sfx.land(); },
-    onDragCancel(id, room) { if (room) toast(`${ch(id).name} tidak bisa ke ${META.roomLabel[room]}. Lepaskan di benua berbingkai hijau.`, 'error'); },
+    onDragCancel(id, room) { if (room) toast(`${ch(id).name} tidak bisa ke ${META.roomLabel[room]}. Lepaskan di pulau berbingkai hijau.`, 'error'); },
     onRoom(room) {
       if (!selected || !state) return;
       if (state.legalMoves.some(m => m.charId === selected && m.to === room)) { A.sfx.land(); emit('move', { charId: selected, to: room }); selected = null; renderGame(); }
-      else toast('Tamu itu tidak bisa pindah ke benua tersebut.', 'error');
+      else toast('Tamu itu tidak bisa pindah ke pulau tersebut.', 'error');
     },
     onDiceTap() { rollDice(); },
     onHover() { A.sfx.hover(); },
@@ -381,10 +381,10 @@ function renderGame() {
     const b = btnWithIcon('btn primary roll', ICON.dice, 'Lempar Dadu'); b.onclick = () => { b.disabled = true; rollDice(); }; ap.append(b);
   } else if (s.step === 'MOVE') {
     msg.textContent = selected
-      ? `Geser ${ch(selected).name} ke benua berbingkai hijau (atau ketuk benuanya).`
+      ? `Geser ${ch(selected).name} ke pulau berbingkai hijau (atau ketuk pulaunya).`
       : `${DIE_LABEL[s.die]}: pindahkan satu tamu MASUK ke / KELUAR dari ${META.roomLabel[s.die]}. Tahan bidak bercincin emas, lalu geser.`;
   } else if (s.step === 'BLACK') {
-    msg.textContent = killSel ? `Ketuk ${ch(killSel).name} sekali lagi untuk membuka topengnya.` : 'HITAM! Ketuk bidak bercincin merah (satu benua denganmu) untuk membuka topengnya' + (priv.canDraw ? ', atau buka kartu tamu biasa.' : '. Kamu wajib membuka topeng seseorang.');
+    msg.textContent = killSel ? `Ketuk ${ch(killSel).name} sekali lagi untuk membuka topengnya.` : 'HITAM! Ketuk bidak bercincin merah (satu pulau denganmu) untuk membuka topengnya' + (priv.canDraw ? ', atau buka kartu tamu biasa.' : '. Kamu wajib membuka topeng seseorang.');
     if (priv.canDraw) { const b = btnWithIcon('btn', ICON.card, `Buka kartu tamu (${me.cards.length}/3)`); b.onclick = () => emit('draw'); ap.append(b); }
   }
   ap.prepend(msg);
@@ -431,9 +431,9 @@ function showReveal(ev, done) {
     kicker = 'KARTU DIBUKA'; title = `${pname(ev.by)} membuka kartu`; line = 'Tamu ini disuruh pulang dari pesta:'; A.sfx.card();
   }
   front.append(el('p', 'rv-kicker', kicker), pic, el('h3', 'rv-title', title), el('p', 'rv-line', line), el('p', 'rv-role', c.name.toUpperCase()));
-  if (ev.room && META.roomLabel[ev.room]) { // benua tempat topeng dibuka / tamu pulang
+  if (ev.room && META.roomLabel[ev.room]) { // pulau tempat topeng dibuka / tamu pulang
     const place = el('p', 'rv-place');
-    place.append(el('span', null, ev.type === 'left' ? 'Pulang dari' : 'Di benua'), el('b', `rv-room die-${ev.room}`, META.roomLabel[ev.room].toUpperCase()));
+    place.append(el('span', null, ev.type === 'left' ? 'Pulang dari' : 'Di pulau'), el('b', `rv-room die-${ev.room}`, META.roomLabel[ev.room].toUpperCase()));
     front.append(place);
   }
   if (ev.type === 'eliminated') front.append(el('p', 'rv-bio', c.bio));

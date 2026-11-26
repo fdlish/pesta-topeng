@@ -19,7 +19,7 @@
   --on-brass: #1c1405;
   --danger: #ef4444;
   --ok: #4ade80;
-  --asia: #2f8f57; --afrika: #d9a62e; --eropa: #2f63b8; --amerika: #c2413a; --antartika: #e4ecf2; --hitam: #15171c;
+  --papua: #e4ecf2; --sulawesi: #d9a62e; --jawa: #2f63b8; --sumatera: #c2413a; --kalimantan: #2f8f57; --hitam: #15171c;
   --radius: 14px;
   --serif: "Playfair Display", Georgia, "Times New Roman", serif;
   --sans: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -117,8 +117,8 @@ input:focus { outline: none; border-color: var(--brass); box-shadow: 0 0 0 3px r
 .board3d canvas { position: absolute; inset: 0; width: 100% !important; height: 100% !important; display: block; }
 .roll-banner { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); padding: 8px 20px; border-radius: 999px; font-family: var(--serif); font-weight: 700; font-size: 1.05rem; letter-spacing: .06em; color: #fff; pointer-events: none; animation: pop .35s var(--ease); z-index: 2; border: 1px solid rgba(255,255,255,.25); box-shadow: 0 10px 30px -10px rgba(0,0,0,.7); }
 @keyframes pop { from { transform: translateX(-50%) translateY(-6px) scale(.92); opacity: 0; } to { transform: translateX(-50%) scale(1); opacity: 1; } }
-.die-asia { background: var(--asia); } .die-afrika { background: var(--afrika); color: #1f1606 !important; } .die-eropa { background: var(--eropa); }
-.die-amerika { background: var(--amerika); } .die-antartika { background: var(--antartika); color: #1d2633 !important; } .die-hitam { background: var(--hitam); color: var(--brass-hi) !important; border-color: var(--brass) !important; }
+.die-papua { background: var(--papua); color: #1d2633 !important; } .die-sulawesi { background: var(--sulawesi); color: #1f1606 !important; } .die-jawa { background: var(--jawa); }
+.die-sumatera { background: var(--sumatera); } .die-kalimantan { background: var(--kalimantan); } .die-hitam { background: var(--hitam); color: var(--brass-hi) !important; border-color: var(--brass) !important; }
 
 .sheet { padding: 10px 14px calc(12px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 8px; background: linear-gradient(to top, #07090c 75%, rgba(7,9,12,0)); }
 .identity { width: 100%; display: flex; gap: 12px; align-items: center; padding: 10px 14px; min-height: 52px; border-radius: 12px; border: 1px dashed rgba(243,234,215,.22); background: var(--surface); color: var(--text); font-size: .93rem; text-align: left; cursor: pointer; transition: border-color .2s var(--ease); }
@@ -636,7 +636,7 @@ html, body { overflow-x: clip; }
 .stat b { font-size: 1.3rem; }
 .recent-list li.muted { display: block; padding: 12px 4px; }
 
-/* kartu pengungkapan: benua tempat kejadian */
+/* kartu pengungkapan: pulau tempat kejadian */
 .rv-place { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 10px 0 0; font-size: .9rem; color: var(--muted); }
 .rv-room { display: inline-flex; align-items: center; padding: 4px 12px; border-radius: 999px; font: 800 .9rem var(--sans); letter-spacing: .06em; color: #fff; border: 1px solid rgba(255,255,255,.25); box-shadow: 0 6px 16px -8px rgba(0,0,0,.8); }
 

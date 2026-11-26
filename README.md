@@ -3,24 +3,24 @@
 Game deduksi identitas tersembunyi untuk 3–8 pemain, dimainkan di browser (HP/laptop) dengan **room code**. Tanpa akun dan tanpa install.
 
 ## Cara main
-- Ada 20 tamu bertopeng yang tersebar di 5 benua. Setiap pemain diam-diam menjadi salah satu tamu itu.
+- Ada 20 tamu bertopeng yang tersebar di 5 pulau. Setiap pemain diam-diam menjadi salah satu tamu itu.
 - Di giliranmu, lempar dadu:
-  - **Benua**: pindahkan tamu mana saja *masuk ke* atau *keluar dari* benua itu, ke benua yang bersebelahan.
-  - **Hitam**: buka topeng satu tamu yang **satu benua dengan karaktermu**, atau ambil kartu tamu biasa (maks 3) untuk menyuruhnya pulang. Setelah punya 3 kartu, kamu wajib membuka topeng.
-  - Kalau dadu hitam dan karaktermu **sendirian** di benuanya, topengmu sendiri yang terbuka.
+  - **Pulau**: pindahkan tamu mana saja *masuk ke* atau *keluar dari* pulau itu, ke pulau yang bersebelahan.
+  - **Hitam**: buka topeng satu tamu yang **satu pulau dengan karaktermu**, atau ambil kartu tamu biasa (maks 3) untuk menyuruhnya pulang. Setelah punya 3 kartu, kamu wajib membuka topeng.
+  - Kalau dadu hitam dan karaktermu **sendirian** di pulaunya, topengmu sendiri yang terbuka.
 - Pemain terakhir yang masih bertopeng menang.
 
-Papan: `[Amerika][Antartika] / [Eropa] / [Afrika][Asia]`.
+Papan: `[Sumatera][Kalimantan] / [Jawa] / [Sulawesi][Papua]`.
 
-| Benua | Warna | Nuansa lantai & dekorasi | Bersebelahan dengan |
+| Pulau | Warna | Nuansa lantai & dekorasi | Bersebelahan dengan |
 |---|---|---|---|
-| Amerika (kiri atas) | Merah | lapisan batu ngarai, kaktus saguaro, gedung pencakar langit | Antartika, Eropa |
-| Antartika (kanan atas) | Putih | es retak, salju, jejak & patung penguin, gunung es | Amerika, Eropa |
-| Eropa (tengah) | Biru | alun-alun batu kipas, kincir angin, menara | semua benua (pusat) |
-| Afrika (kiri bawah) | Kuning | sabana, pohon akasia, piramida | Asia, Eropa |
-| Asia (kanan bawah) | Hijau | sawah terasering, rumpun bambu, pagoda | Afrika, Eropa |
+| Sumatera (kiri atas) | Merah | lapisan batu ngarai, kaktus saguaro, gedung pencakar langit | Kalimantan, Jawa |
+| Kalimantan (kanan atas) | Putih | es retak, salju, jejak & patung penguin, gunung es | Sumatera, Jawa |
+| Jawa (tengah) | Biru | alun-alun batu kipas, kincir angin, menara | semua pulau (pusat) |
+| Sulawesi (kiri bawah) | Kuning | sabana, pohon akasia, piramida | Papua, Jawa |
+| Papua (kanan bawah) | Hijau | sawah terasering, rumpun bambu, pagoda | Sulawesi, Jawa |
 
-Dadu berbentuk **prisma segi lima dengan 7 sisi**: 5 sisi panjang ASIA, AFRIKA, EROPA, AMERIKA, ANTARTIKA (masing-masing dengan warnanya) + 2 ujung HITAM. Peluangnya: HITAM 2/7 (±29%), tiap benua 1/7 (±14%). Hasil diundi server secara adil, jadi bentuk prisma tidak memengaruhi peluang.
+Dadu berbentuk **prisma segi lima dengan 7 sisi**: 5 sisi panjang PAPUA, SULAWESI, JAWA, SUMATERA, KALIMANTAN (masing-masing dengan warnanya) + 2 ujung HITAM. Peluangnya: HITAM 2/7 (±29%), tiap pulau 1/7 (±14%). Hasil diundi server secara adil, jadi bentuk prisma tidak memengaruhi peluang.
 
 ## Pengalaman bermain (polesan v2)
 - **Musik latar generatif**, bergaya *masquerade lounge*: progresi jazz ii–V–I, bas, sikat drum, dan melodi acak, jadi tidak pernah berulang persis. Tempo dan perkusi naik saat tersisa 2 pemain. Dibuat dengan WebAudio, tanpa file. Musik berhenti saat tab disembunyikan.
@@ -36,26 +36,26 @@ Dadu berbentuk **prisma segi lima dengan 7 sisi**: 5 sisi panjang ASIA, AFRIKA, 
 ## Tampilan 3D: "atlas antik di meja permainan"
 - Papan berbingkai kayu walnut dengan lis kuningan, di atas meja felt hijau yang disorot satu lampu meja hangat.
 - Lautan bergaya peta tua: biru tua, garis lintang/bujur emas, riak ombak yang bergerak pelan, dan mata angin.
-- Benua berupa pulau felt dengan pesisir pasir dan nama benua bergaya kartu peta (Playfair Display). Setiap benua punya miniatur landmark kuningan: menara (Eropa), pagoda (Asia), piramida (Afrika), gedung pencakar langit (Amerika), dan gunung es (Antartika).
-- Jembatan modern-minimalis, berbeda untuk setiap pasangan benua: **es** (Amerika–Antartika), **bilah jati** (Afrika–Asia), **gantung** (Amerika–Eropa), **lengkung putih** (Antartika–Eropa), **terakota** (Afrika–Eropa), dan **jembatan bulan merah** (Asia–Eropa). Di kedua ujung ada pelat ambang berwarna benua tujuan. Jembatan yang menjadi jalur sah menyala hijau.
+- Pulau berupa pulau felt dengan pesisir pasir dan nama pulau bergaya kartu peta (Playfair Display). Setiap pulau punya miniatur landmark kuningan: menara (Jawa), pagoda (Papua), piramida (Sulawesi), gedung pencakar langit (Sumatera), dan gunung es (Kalimantan).
+- Jembatan modern-minimalis, berbeda untuk setiap pasangan pulau: **es** (Sumatera–Kalimantan), **bilah jati** (Sulawesi–Papua), **gantung** (Sumatera–Jawa), **lengkung putih** (Kalimantan–Jawa), **terakota** (Sulawesi–Jawa), dan **jembatan bulan merah** (Papua–Jawa). Di kedua ujung ada pelat ambang berwarna pulau tujuan. Jembatan yang menjadi jalur sah menyala hijau.
 - **Kartu identitas**: foto profil yang dirender dari model 3D karakter, nama profesi, dan bio satir (fiksi, untuk hiburan). Bio ada di `game.js` → `CHARACTERS`. Foto yang sama dipakai di layar akhir game.
 - **20 karakter chibi profesi** bergaya vinyl toy: kepala besar, mata besar mengilap, alis, pipi merona, senyum, rambut, dan seragam lengkap (dasi, rompi reflektif, jas, celana kerja). Setiap tamu memegang topeng pesta bertangkai, sesuai tema *Pesta Topeng*.
   Koki, Polisi, Dokter, Pemadam, Petani (caping), Pilot, Astronot, Pelukis, Pesulap, Peternak, Tukang, Kapten Kapal, Detektif, Dalang (blangkon), Profesor, Atlet, DJ, Perawat, Ilmuwan, dan Kurir.
   Modelnya ada di `public/figures3d.js`. Setiap profesi = satu entri `PROFESSIONS` (warna seragam, gaya rambut, topi, atribut). Geometri dan material dipakai bersama agar hemat GPU.
-- Dadu prisma gading: nama benua ditulis memanjang di tiap sisi agar mudah terbaca, dan kedua ujung HITAM bergambar topeng emas.
+- Dadu prisma gading: nama pulau ditulis memanjang di tiap sisi agar mudah terbaca, dan kedua ujung HITAM bergambar topeng emas.
 - UI memakai palet tinta, kuningan, dan krem. Ikon berupa SVG (bukan emoji), font self-hosted (tanpa CDN), dan ada tombol **Kurangi animasi** di panel catatan (disimpan di perangkat). Animasi tidak lagi mengikuti setelan sistem, karena setelan itu sering menyala di laptop/iPhone sehingga animasi tidak jalan.
 
 - Dibangun dengan **three.js** (di-serve dari `node_modules`, tanpa CDN dan tanpa game engine).
-- Papan 3D di atas meja kayu: 5 benua berdinding dengan jembatan pintu. Kamera bisa diputar (drag) dan di-zoom (pinch/scroll). Tombol 🎥 mengembalikan kamera ke posisi awal.
-- Bidak 3D dengan wajah topeng (emoji). Setiap gerakan dianimasikan dengan bidak melompat ke benua tujuan. Bidak yang topengnya dibuka akan roboh lalu tenggelam, sedangkan tamu yang pulang melayang ke atas.
+- Papan 3D di atas meja kayu: 5 pulau berdinding dengan jembatan pintu. Kamera bisa diputar (drag) dan di-zoom (pinch/scroll). Tombol 🎥 mengembalikan kamera ke posisi awal.
+- Bidak 3D dengan wajah topeng (emoji). Setiap gerakan dianimasikan dengan bidak melompat ke pulau tujuan. Bidak yang topengnya dibuka akan roboh lalu tenggelam, sedangkan tamu yang pulang melayang ke atas.
 - Dadu 3D dilempar ke meja: berputar, memantul, dan berhenti tepat di sisi hasil dari server, lengkap dengan bunyi "klak" (WebAudio, tanpa file audio). Semua pemain melihat animasi lemparan yang sama.
-- **Border benua.** Hijau menyala = tujuan yang sah, merah = benua yang tidak terlibat (sekaligus digelapkan), emas = benua asal bidak yang sedang dipegang.
-- **Sinematik pindah bidak.** Saat pemain lain memindahkan bidak, kamera zoom mengikuti bidak itu (sekitar 1,5 detik). Bidak terangkat, melayang lewat jembatan dengan cincin biru dan label nama, lalu mendarat. Ada efek suara *swoosh* dan *pop* (WebAudio, tanpa file) serta toast "Budi memindahkan Koki: Amerika → Eropa". Ambil dan lepas bidakmu sendiri juga berbunyi.
-- **Sorotan aturan.** Setelah dadu dilempar, benua yang tidak terlibat menggelap. Contoh: dadu ASIA → Amerika & Antartika gelap; hanya Asia dan tetangganya (Afrika, Eropa) yang terang. Saat bidak dipegang, hanya benua asal dan benua tujuan yang sah yang terang. Saat dadu HITAM, hanya benuamu yang terang (hanya di layarmu).
-- **Posisi bebas di dalam benua.** Bidak berdiri tepat di titik kamu melepasnya, asal masih di dalam wilayah benua tujuan. Server hanya menggeser sedikit bila bertabrakan dengan bidak lain atau dekorasi, dan posisinya sama di layar semua pemain. Di awal game, bidak disebar merata. Geometri papan ada di `layout.js` (dipakai server dan dikirim ke client lewat `/meta`).
-- **Memindahkan bidak: tahan lalu geser.** Tahan bidak bercincin putih, lalu geser ke benua yang menyala dan lepaskan. Jembatan yang menjadi jalurnya ikut menyala. Kalau dilepas di tempat yang salah, bidak kembali ke posisinya. Cara cadangan: ketuk bidak, lalu ketuk benua tujuan.
-- Jembatan kayu berpagar dengan gerbang emas menandai benua mana saja yang terhubung.
-- Sorotan: cincin putih = bidak yang bisa dipindah, benua yang berdenyut = tujuan, cincin merah = target buka topeng, ⭐ = karaktermu (hanya terlihat saat identitas dibuka).
+- **Border pulau.** Hijau menyala = tujuan yang sah, merah = pulau yang tidak terlibat (sekaligus digelapkan), emas = pulau asal bidak yang sedang dipegang.
+- **Sinematik pindah bidak.** Saat pemain lain memindahkan bidak, kamera zoom mengikuti bidak itu (sekitar 1,5 detik). Bidak terangkat, melayang lewat jembatan dengan cincin biru dan label nama, lalu mendarat. Ada efek suara *swoosh* dan *pop* (WebAudio, tanpa file) serta toast "Budi memindahkan Koki: Sumatera → Jawa". Ambil dan lepas bidakmu sendiri juga berbunyi.
+- **Sorotan aturan.** Setelah dadu dilempar, pulau yang tidak terlibat menggelap. Contoh: dadu PAPUA → Sumatera & Kalimantan gelap; hanya Papua dan tetangganya (Sulawesi, Jawa) yang terang. Saat bidak dipegang, hanya pulau asal dan pulau tujuan yang sah yang terang. Saat dadu HITAM, hanya pulaumu yang terang (hanya di layarmu).
+- **Posisi bebas di dalam pulau.** Bidak berdiri tepat di titik kamu melepasnya, asal masih di dalam wilayah pulau tujuan. Server hanya menggeser sedikit bila bertabrakan dengan bidak lain atau dekorasi, dan posisinya sama di layar semua pemain. Di awal game, bidak disebar merata. Geometri papan ada di `layout.js` (dipakai server dan dikirim ke client lewat `/meta`).
+- **Memindahkan bidak: tahan lalu geser.** Tahan bidak bercincin putih, lalu geser ke pulau yang menyala dan lepaskan. Jembatan yang menjadi jalurnya ikut menyala. Kalau dilepas di tempat yang salah, bidak kembali ke posisinya. Cara cadangan: ketuk bidak, lalu ketuk pulau tujuan.
+- Jembatan kayu berpagar dengan gerbang emas menandai pulau mana saja yang terhubung.
+- Sorotan: cincin putih = bidak yang bisa dipindah, pulau yang berdenyut = tujuan, cincin merah = target buka topeng, ⭐ = karaktermu (hanya terlihat saat identitas dibuka).
 - Hemat baterai: canvas hanya di-render ulang saat ada animasi, sorotan, atau gerakan kamera. WebGL baru dibuat ketika game dimulai.
 
 Kode 3D ada di `public/board3d.js`. Untuk mengganti model bidak dengan file `.glb` (misalnya dari Kenney.nl atau Blender), ubah `buildFigures()` agar memuat model dengan `GLTFLoader`.

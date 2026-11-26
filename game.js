@@ -3,21 +3,21 @@
 const LAYOUT = require('./layout');
 const SCORING = require('./scoring');
 
-// Papan = 5 benua. Warna: Asia hijau, Afrika kuning, Eropa biru, Amerika merah, Antartika putih.
-const ROOMS = ['amerika', 'antartika', 'eropa', 'afrika', 'asia'];
-const ROOM_LABEL = { asia: 'Asia', afrika: 'Afrika', eropa: 'Eropa', amerika: 'Amerika', antartika: 'Antartika' };
-const ROOM_COLOR_NAME = { asia: 'hijau', afrika: 'kuning', eropa: 'biru', amerika: 'merah', antartika: 'putih' };
-// Tata letak papan:  [Amerika][Antartika] / [   Eropa   ] / [Afrika][Asia]
-// Eropa di tengah terhubung ke semua benua.
+// Papan = 5 pulau besar Indonesia. Warna: Sumatera merah, Kalimantan hijau, Jawa biru, Sulawesi kuning, Papua putih (salju Puncak Jaya).
+const ROOMS = ['sumatera', 'kalimantan', 'jawa', 'sulawesi', 'papua'];
+const ROOM_LABEL = { papua: 'Papua', sulawesi: 'Sulawesi', jawa: 'Jawa', sumatera: 'Sumatera', kalimantan: 'Kalimantan' };
+const ROOM_COLOR_NAME = { papua: 'putih', sulawesi: 'kuning', jawa: 'biru', sumatera: 'merah', kalimantan: 'hijau' };
+// Tata letak papan:  [Sumatera][Kalimantan] / [   Jawa   ] / [Sulawesi][Papua]
+// Jawa di tengah terhubung ke semua pulau.
 const ADJ = {
-  amerika: ['antartika', 'eropa'],
-  antartika: ['amerika', 'eropa'],
-  afrika: ['asia', 'eropa'],
-  asia: ['afrika', 'eropa'],
-  eropa: ['amerika', 'antartika', 'afrika', 'asia'],
+  sumatera: ['kalimantan', 'jawa'],
+  kalimantan: ['sumatera', 'jawa'],
+  sulawesi: ['papua', 'jawa'],
+  papua: ['sulawesi', 'jawa'],
+  jawa: ['sumatera', 'kalimantan', 'sulawesi', 'papua'],
 };
-// Dadu 7 sisi (prisma segi lima): 5 sisi benua + 2 ujung hitam → hitam 2/7 (±29%), tiap benua 1/7 (±14%)
-const DIE = ['asia', 'afrika', 'eropa', 'amerika', 'antartika', 'hitam', 'hitam'];
+// Dadu 7 sisi (prisma segi lima): 5 sisi pulau + 2 ujung hitam → hitam 2/7 (±29%), tiap pulau 1/7 (±14%)
+const DIE = ['papua', 'sulawesi', 'jawa', 'sumatera', 'kalimantan', 'hitam', 'hitam'];
 
 const CHARACTERS = [ // 20 tamu = 20 profesi. bio = deskripsi satir (fiksi, untuk hiburan)
   ['koki', 'Koki', '🧑‍🍳', 'Memasak untuk program makan bergizi; porsinya menyusut tiap kali lewat meja rapat.'],
@@ -122,7 +122,7 @@ function eliminate(g, p, how, by = null) {
   p.alive = false;
   p.outAt = ++g.outSeq; // urutan tersingkir → menentukan juara 2..8
   if (by) { const k = player(g, by); if (k) k.unmasks = (k.unmasks || 0) + 1; }
-  const room = g.figures[p.charId] || null; // benua tempat topeng terbuka
+  const room = g.figures[p.charId] || null; // pulau tempat topeng terbuka
   delete g.figures[p.charId]; delete g.spots[p.charId];
   event(g, 'eliminated', p.charId, { victim: p.id, by, self: !by, room });
   log(g, `${how} ${p.name} ternyata adalah ${charLabel(p.charId)} — tersingkir!`);
@@ -185,13 +185,13 @@ function roll(g, pid, rng = Math.random) {
   }
   log(g, `${p.name} melempar dadu: HITAM!`);
   if (blackOptions(g, p).alone) {
-    eliminate(g, p, 'Sendirian di benuanya, topeng terbuka:');
+    eliminate(g, p, 'Sendirian di pulaunya, topeng terbuka:');
     return nextTurn(g);
   }
   g.step = 'BLACK';
 }
 
-// spot (opsional) = titik pilihan pemain di dalam benua tujuan; server menjepit & menghindari tabrakan
+// spot (opsional) = titik pilihan pemain di dalam pulau tujuan; server menjepit & menghindari tabrakan
 function move(g, pid, charId, to, spot) {
   const p = assertTurn(g, pid, 'MOVE');
   const ok = legalMoves(g, g.die).some(m => m.charId === charId && m.to === to);
@@ -206,7 +206,7 @@ function move(g, pid, charId, to, spot) {
 
 function kill(g, pid, targetId) {
   const p = assertTurn(g, pid, 'BLACK');
-  if (!blackOptions(g, p).killTargets.includes(targetId)) throw new Error('Target harus satu benua dengan karaktermu');
+  if (!blackOptions(g, p).killTargets.includes(targetId)) throw new Error('Target harus satu pulau dengan karaktermu');
   const room = g.figures[targetId];
   const victim = g.players.find(x => x.alive && x.charId === targetId);
   if (victim) eliminate(g, victim, `${p.name} membuka topeng di ${ROOM_LABEL[room]}!`, p.id);

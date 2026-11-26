@@ -1,5 +1,5 @@
 // Papan 3D Pesta Topeng — "atlas antik di meja permainan".
-// Benua = pulau felt di atas lautan, dihubungkan jembatan kayu; miniatur landmark kuningan; lampu meja hangat.
+// Pulau = pulau felt di atas lautan, dihubungkan jembatan kayu; miniatur landmark kuningan; lampu meja hangat.
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
@@ -9,8 +9,8 @@ import { THEMES, DECOR } from './themes3d.js';
 import { getPortrait } from './portraits.js';
 
 // ---------- palet ----------
-const FELT = { asia: '#2f8f57', afrika: '#d9a62e', eropa: '#2f63b8', amerika: '#c2413a', antartika: '#e4ecf2' };
-const INK_ON = { antartika: '#1d2633', afrika: '#3b2a08' }; // teks tinta gelap di felt terang (kontras)
+const FELT = { papua: '#e4ecf2', sulawesi: '#d9a62e', jawa: '#2f63b8', sumatera: '#c2413a', kalimantan: '#2f8f57' };
+const INK_ON = { papua: '#1d2633', sulawesi: '#3b2a08' }; // teks tinta gelap di felt terang (kontras)
 const CREAM = '#f3ead7', INK = '#1d2633', BRASS = '#c9a14a';
 const FIG_COLORS = ['#b23a48', '#2e6f95', '#3d8b5e', '#c98a2b', '#6a4c93', '#d1603d', '#1f7a7a', '#8f2d56', '#4a6fa5', '#9a7b2f',
   '#2b2d42', '#c44536', '#3c6e71', '#7d5a50', '#5b8e7d', '#a23e48', '#356089', '#7b6d8d', '#b5838d', '#4f772d'];
@@ -24,7 +24,7 @@ function initLayout(L) {
 }
 
 const SEA_Y = 0.02, FLOOR_Y = 0.32, FIG_S = 1.42;
-const DIE_SIDES = ['asia', 'afrika', 'eropa', 'amerika', 'antartika']; // urutan panel sisi prisma (searah sudut θ)
+const DIE_SIDES = ['papua', 'sulawesi', 'jawa', 'sumatera', 'kalimantan']; // urutan panel sisi prisma (searah sudut θ)
 // Animasi selalu aktif di semua perangkat. Sebelumnya mengikuti setelan sistem "kurangi gerakan",
 // yang sering menyala di laptop/iPhone sehingga animasi tidak jalan. Sekarang dimatikan hanya lewat
 // tombol "Kurangi animasi" di dalam game.
@@ -188,7 +188,7 @@ export class Board3D {
     waves.rotation.x = -Math.PI / 2; waves.position.y = SEA_Y + 0.005; this.scene.add(waves);
     this.buildCompass(-SEA_W / 2 + 0.55, SEA_D / 2 - 0.55);
 
-    // pulau benua
+    // pulau pulau
     this.roomMeshes = {};
     const coastMat = new THREE.MeshStandardMaterial({ color: '#cbb48a', roughness: 0.9 });
     for (const [room, L] of Object.entries(LAYOUT)) {
@@ -211,8 +211,8 @@ export class Board3D {
       const rim = new THREE.Mesh(new THREE.ExtrudeGeometry(rimShape, { depth: 0.1, bevelEnabled: false }), rimMat);
       rim.rotation.x = -Math.PI / 2; rim.position.set(L.x, FLOOR_Y - 0.05, L.z); this.scene.add(rim);
 
-      // bayangan gelap untuk benua yang tidak terlibat dalam langkah saat ini
-      // (lantai diredupkan lewat warna material; tidak ada objek tambahan yang menutupi benua lain)
+      // bayangan gelap untuk pulau yang tidak terlibat dalam langkah saat ini
+      // (lantai diredupkan lewat warna material; tidak ada objek tambahan yang menutupi pulau lain)
       this.roomMeshes[room] = { floorMat: feltMat, rimMat, floor, shadeOp: 0 };
       for (const pr of PROPS[room]) {
         if (DECOR[pr.kind]) { const g = new THREE.Group(); DECOR[pr.kind](g); g.position.set(L.x + pr.dx, FLOOR_Y, L.z + pr.dz); this.scene.add(g); }
@@ -224,20 +224,20 @@ export class Board3D {
   }
 
   feltTexture(room, L) {
-    // ilustrasi khas benua + pita perkamen berisi nama benua (kontras tinggi di atas gambar apa pun)
+    // ilustrasi khas pulau + pita perkamen berisi nama pulau (kontras tinggi di atas gambar apa pun)
     const W = Math.min(2048, Math.round(218 * L.w)), H = Math.round(W * L.d / L.w), k = W / L.w / 218, u = W / L.w;
     return canvasTex(W, H, (g, w, h) => {
       THEMES[room](g, w, h, u);
       const vig = g.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.3, w / 2, h / 2, Math.max(w, h) * 0.65);
       vig.addColorStop(0, 'rgba(0,0,0,0)'); vig.addColorStop(1, 'rgba(0,0,0,.22)');
       g.fillStyle = vig; g.fillRect(0, 0, w, h);
-      const ink = room === 'antartika' ? 'rgba(40,70,100,.5)' : 'rgba(255,246,225,.6)';
+      const ink = room === 'papua' ? 'rgba(40,70,100,.5)' : 'rgba(255,246,225,.6)';
       g.strokeStyle = ink; g.lineWidth = 3 * k; const m = 26 * k; g.strokeRect(m, m, w - m * 2, h - m * 2);
       g.lineWidth = 1.2 * k; const m2 = m + 10 * k; g.strokeRect(m2, m2, w - m2 * 2, h - m2 * 2);
-      // nama benua besar di tengah wilayah — semi-transparan (seperti cap/watermark peta),
+      // nama pulau besar di tengah wilayah — semi-transparan (seperti cap/watermark peta),
       // diberi garis tepi tipis agar tetap terbaca di atas ilustrasi apa pun
       const label = this.meta.roomLabel[room].toUpperCase();
-      const light = room === 'antartika';
+      const light = room === 'papua';
       let fs = h * 0.4, sp = fs * 0.12;
       const fit = () => { g.font = `700 ${fs}px ${SERIF}`; return g.measureText(label).width + label.length * sp; };
       while (fit() > w * 0.78 && fs > 40) { fs -= 4; sp = fs * 0.12; }
@@ -274,7 +274,35 @@ export class Board3D {
   buildLandmark(kind, px, pz) {
     const g = new THREE.Group(), M = this.shared.brass;
     const add = (geo, x, y, z, ry = 0) => { const m = new THREE.Mesh(geo, M); m.position.set(x, y, z); m.rotation.y = ry; m.castShadow = true; g.add(m); return m; };
-    if (kind === 'tower') { // menara besi bergaya Eropa
+    if (kind === 'monas') { // Monumen Nasional, Jakarta
+      add(new THREE.BoxGeometry(0.62, 0.1, 0.62), 0, 0.05, 0);
+      add(new THREE.BoxGeometry(0.4, 0.14, 0.4), 0, 0.17, 0);
+      add(new THREE.CylinderGeometry(0.05, 0.11, 0.95, 4), 0, 0.715, 0, Math.PI / 4);
+      add(new THREE.CylinderGeometry(0.1, 0.05, 0.08, 12), 0, 1.22, 0);
+      add(new THREE.ConeGeometry(0.06, 0.18, 10), 0, 1.35, 0);              // lidah api emas
+    } else if (kind === 'gadang') { // Rumah Gadang, Sumatera Barat
+      add(new THREE.BoxGeometry(0.8, 0.3, 0.42), 0, 0.27, 0);
+      for (const x of [-0.32, 0, 0.32]) add(new THREE.CylinderGeometry(0.025, 0.025, 0.12, 6), x, 0.06, 0.15);
+      add(new THREE.BoxGeometry(0.86, 0.06, 0.5), 0, 0.45, 0);
+      for (const [x, tilt, hgt] of [[-0.42, 0.9, 0.42], [-0.2, 0.45, 0.36], [0.2, -0.45, 0.36], [0.42, -0.9, 0.42]]) { // gonjong
+        const m = add(new THREE.ConeGeometry(0.1, hgt, 8), x, 0.6, 0); m.rotation.z = tilt;
+      }
+    } else if (kind === 'tugu') { // Tugu Khatulistiwa, Pontianak
+      add(new THREE.BoxGeometry(0.5, 0.08, 0.5), 0, 0.04, 0);
+      for (const [x, z] of [[-0.14, -0.14], [0.14, -0.14], [-0.14, 0.14], [0.14, 0.14]]) add(new THREE.BoxGeometry(0.05, 0.62, 0.05), x, 0.39, z);
+      const ring = add(new THREE.TorusGeometry(0.2, 0.018, 8, 28), 0, 0.92, 0); ring.rotation.x = 0.4;
+      add(new THREE.SphereGeometry(0.1, 14, 10), 0, 0.92, 0);
+      const arrow = add(new THREE.ConeGeometry(0.035, 0.5, 6), 0.0, 0.92, 0); arrow.rotation.z = Math.PI / 2;
+    } else if (kind === 'tongkonan') { // Tongkonan, Toraja
+      for (const [x, z] of [[-0.25, -0.1], [0.25, -0.1], [-0.25, 0.1], [0.25, 0.1]]) add(new THREE.CylinderGeometry(0.025, 0.025, 0.2, 6), x, 0.1, z);
+      add(new THREE.BoxGeometry(0.62, 0.22, 0.3), 0, 0.31, 0);
+      const roof = new THREE.Group(); roof.position.y = 0.44; g.add(roof); // atap perahu melengkung ke atas
+      for (let i = -4; i <= 4; i++) { const t = i / 4, m = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.05, 0.46), M); m.position.set(t * 0.5, 0.05 + t * t * 0.32, 0); m.rotation.z = -t * 0.55; m.castShadow = true; roof.add(m); }
+    } else if (kind === 'honai') { // Honai, rumah bulat Papua
+      add(new THREE.CylinderGeometry(0.32, 0.34, 0.28, 18), 0, 0.14, 0);
+      const dome = add(new THREE.SphereGeometry(0.4, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2), 0, 0.26, 0); dome.scale.y = 0.95;
+      add(new THREE.BoxGeometry(0.12, 0.18, 0.04), 0, 0.09, 0.33);
+    } else if (kind === 'tower') { // menara besi bergaya Jawa
       add(new THREE.CylinderGeometry(0.16, 0.36, 0.42, 4, 1, true), 0, 0.21, 0, Math.PI / 4);
       add(new THREE.BoxGeometry(0.42, 0.04, 0.42), 0, 0.43, 0, 0);
       add(new THREE.CylinderGeometry(0.07, 0.16, 0.5, 4, 1, true), 0, 0.7, 0, Math.PI / 4);
@@ -295,7 +323,7 @@ export class Board3D {
     } else if (kind === 'city') { // gedung pencakar langit
       [[-0.24, 0.12, 0.2, 0.75], [0.0, -0.08, 0.22, 1.05], [0.24, 0.12, 0.18, 0.6], [0.06, 0.25, 0.16, 0.42]].forEach(([x, z, s, hgt]) => add(new THREE.BoxGeometry(s, hgt, s), x, hgt / 2, z));
       add(new THREE.CylinderGeometry(0.008, 0.03, 0.3, 6), 0, 1.2, -0.08);
-    } else { // gunung es Antartika
+    } else { // gunung es Kalimantan
       const ice = new THREE.MeshStandardMaterial({ color: '#dfeef8', roughness: 0.25, metalness: 0.05, flatShading: true });
       [[0, 0, 0.42, 0.85], [0.42, 0.15, 0.28, 0.55], [-0.36, 0.18, 0.24, 0.45]].forEach(([x, z, r, hgt]) => {
         const m = new THREE.Mesh(new THREE.ConeGeometry(r, hgt, 6, 2), ice);
@@ -307,8 +335,8 @@ export class Board3D {
   }
 
   buildBridge(b) {
-    // setiap pasangan benua punya jembatan sendiri — tetap modern & minimalis.
-    // pelat ambang di kedua ujung berwarna benua yang dituju, agar arah mudah dibaca.
+    // setiap pasangan pulau punya jembatan sendiri — tetap modern & minimalis.
+    // pelat ambang di kedua ujung berwarna pulau yang dituju, agar arah mudah dibaca.
     const g = new THREE.Group();
     const len = GAP + 0.5, wid = 0.92, y = FLOOR_Y - 0.02;
     const key = [b.a, b.b].sort().join('-');
@@ -318,19 +346,19 @@ export class Board3D {
     let deckMat, railMat;
     const strips = (mat, inset = 0.1, h = 0.055) => { for (const k of [-1, 1]) mesh(RB(len - 0.08, 0.028, 0.07, 0.012), mat, 0, y + h, k * (wid / 2 - inset)); };
 
-    if (key === 'amerika-antartika') {            // ES: dek kaca beku, strip biru es
+    if (key === 'kalimantan-sumatera') {            // ES: dek kaca beku, strip biru es
       deckMat = new THREE.MeshPhysicalMaterial({ color: '#d6efff', roughness: 0.08, transmission: 0.35, thickness: 0.2, clearcoat: 1, emissive: '#22c55e', emissiveIntensity: 0 });
       railMat = M('#e0f6ff', { emissive: '#7dd3fc', emissiveIntensity: 0.6 });
       mesh(RB(len, 0.1, wid, 0.05), deckMat, 0, y);
       strips(railMat);
       for (const t of [-0.32, 0, 0.32]) for (const k of [-1, 1]) mesh(new THREE.OctahedronGeometry(0.06), railMat, t * len, y + 0.12, k * (wid / 2 - 0.02));
-    } else if (key === 'afrika-asia') {            // JATI: bilah kayu modern terpisah + strip emas
+    } else if (key === 'papua-sulawesi') {            // JATI: bilah kayu modern terpisah + strip emas
       deckMat = M('#b07a45', { roughness: 0.6, emissive: '#22c55e', emissiveIntensity: 0 });
       railMat = M('#f5e2b0', { emissive: '#f2cf7a', emissiveIntensity: 0.6 });
       const n = 6; for (let i = 0; i < n; i++) mesh(RB(len, 0.07, wid / n - 0.035, 0.02), deckMat, 0, y, -wid / 2 + (i + 0.5) * wid / n);
       mesh(RB(len - 0.2, 0.05, wid - 0.1, 0.02), M('#2b2f36'), 0, y - 0.06, 0);
       strips(railMat, 0.03, 0.045);
-    } else if (key === 'amerika-eropa') {          // GANTUNG: dek grafit, dua pilon ramping & kabel
+    } else if (key === 'jawa-sumatera') {          // GANTUNG: dek grafit, dua pilon ramping & kabel
       deckMat = M('#363d4a', { metalness: 0.2, emissive: '#22c55e', emissiveIntensity: 0 });
       railMat = M('#f5e2b0', { emissive: '#f2cf7a', emissiveIntensity: 0.6 });
       mesh(RB(len, 0.09, wid, 0.04), deckMat, 0, y);
@@ -341,19 +369,19 @@ export class Board3D {
         const c = new THREE.CatmullRomCurve3([-0.5, -0.25, 0, 0.25, 0.5].map(t => new THREE.Vector3(t * (len - 0.12), y + 0.25 + Math.abs(t) * 1.0, k * (wid / 2 - 0.02))));
         mesh(new THREE.TubeGeometry(c, 20, 0.014, 6), cable);
       }
-    } else if (key === 'antartika-eropa') {        // LENGKUNG: dek putih dengan busur di bawahnya
+    } else if (key === 'jawa-kalimantan') {        // LENGKUNG: dek putih dengan busur di bawahnya
       deckMat = M('#f1efe9', { emissive: '#22c55e', emissiveIntensity: 0 });
       railMat = M('#e9eef2', { emissive: '#bfe3ff', emissiveIntensity: 0.6 });
       mesh(RB(len, 0.08, wid, 0.04), deckMat, 0, y);
       strips(railMat);
       for (const k of [-1, 1]) mesh(new THREE.TorusGeometry(len / 2 - 0.05, 0.035, 8, 32, Math.PI), M('#f1efe9'), 0, y - 0.04, k * (wid / 2 - 0.12), Math.PI, 0, 0);
-    } else if (key === 'afrika-eropa') {           // TERAKOTA: dek tanah liat + tembok pembatas rendah
+    } else if (key === 'jawa-sulawesi') {           // TERAKOTA: dek tanah liat + tembok pembatas rendah
       deckMat = M('#c46a3c', { roughness: 0.75, emissive: '#22c55e', emissiveIntensity: 0 });
       railMat = M('#f5e2b0', { emissive: '#f2cf7a', emissiveIntensity: 0.6 });
       mesh(RB(len, 0.09, wid, 0.04), deckMat, 0, y);
       for (const k of [-1, 1]) mesh(RB(len, 0.14, 0.09, 0.03), M('#e4d2b8', { roughness: 0.8 }), 0, y + 0.1, k * (wid / 2 - 0.045));
       mesh(RB(len - 0.1, 0.02, 0.06, 0.01), railMat, 0, y + 0.05, 0);
-    } else {                                       // asia-eropa — JEMBATAN BULAN: lengkung merah lak, minimal
+    } else {                                       // papua-jawa — JEMBATAN BULAN: lengkung merah lak, minimal
       deckMat = M('#b3262e', { roughness: 0.35, emissive: '#22c55e', emissiveIntensity: 0 });
       railMat = M('#f5e2b0', { emissive: '#f2cf7a', emissiveIntensity: 0.6 });
       const n = 9;
@@ -366,12 +394,12 @@ export class Board3D {
         mesh(new THREE.TubeGeometry(c, 24, 0.022, 8), railMat);
       }
     }
-    // pelat ambang berwarna benua di kedua ujung
+    // pelat ambang berwarna pulau di kedua ujung
     const ends = b.axis === 'x' ? [[b.a, -1], [b.b, 1]] : [[b.a, -1], [b.b, 1]];
     for (const [room, e] of ends) {
       const L = LAYOUT[room];
       const towards = b.axis === 'x' ? Math.sign(L.x - b.x) : Math.sign(L.z - b.z);
-      mesh(RB(0.12, 0.03, wid - 0.1, 0.012), M(FELT[room], { emissive: FELT[room], emissiveIntensity: 0.25 }), towards * (len / 2 - 0.06), y + 0.05 + (key === 'asia-eropa' ? 0.0 : 0), 0);
+      mesh(RB(0.12, 0.03, wid - 0.1, 0.012), M(FELT[room], { emissive: FELT[room], emissiveIntensity: 0.25 }), towards * (len / 2 - 0.06), y + 0.05 + (key === 'jawa-papua' ? 0.0 : 0), 0);
     }
     g.position.set(b.x, 0, b.z);
     if (b.axis === 'z') g.rotation.y = -Math.PI / 2;
@@ -382,7 +410,7 @@ export class Board3D {
   // foto profil: dipusatkan di portraits.js (cache bersama untuk semua layar)
   portrait(id) { return getPortrait(id); }
 
-  // Dadu prisma segi lima: 5 sisi panjang = 5 benua, 2 ujung segi lima = hitam.
+  // Dadu prisma segi lima: 5 sisi panjang = 5 pulau, 2 ujung segi lima = hitam.
   buildDie() {
     const R = 0.59, H = 0.95; // apotema (R·cos36°) ≈ H/2 → tinggi diam sama, rebah maupun berdiri
     const P = 256, PH = 360;  // ukuran satu panel sisi di atlas
@@ -414,10 +442,10 @@ export class Board3D {
     this.die = new THREE.Mesh(new THREE.CylinderGeometry(R, R, H, 5, 1, false), [phys(sideTex), capMat, capMat]);
     this.die.castShadow = true;
     this.die.position.copy(DIE_REST);
-    this.die.quaternion.copy(this.faceUpQuat('afrika', 0.4));
+    this.die.quaternion.copy(this.faceUpQuat('sulawesi', 0.4));
     this.scene.add(this.die);
   }
-  // Putar dadu agar sisi `face` menghadap ke atas. Untuk sisi benua, yaw dihitung supaya
+  // Putar dadu agar sisi `face` menghadap ke atas. Untuk sisi pulau, yaw dihitung supaya
   // tulisan menghadap kamera (terbaca kiri→kanan, tidak terbalik), plus sedikit acak agar alami.
   faceUpQuat(face, yaw = null) {
     const up = new THREE.Vector3(0, 1, 0);
@@ -951,14 +979,14 @@ export class Board3D {
     const hover = drag ? drag.hover : null;
     const selFig = ui.selected && this.figures.get(ui.selected);
     const from = selFig && selFig.room;
-    // benua mana yang "terlibat" langkah ini → terang; sisanya diberi bayangan gelap
+    // pulau mana yang "terlibat" langkah ini → terang; sisanya diberi bayangan gelap
     let lit = null;
     if (active && st.phase === 'PLAYING') {
       if (st.step === 'MOVE' && st.die) {
         lit = from && dests.size ? new Set([from, ...dests])                       // bidak dipilih: asal + tujuan sah
-          : new Set([st.die, ...(this.meta.adj[st.die] || [])]);                   // baru lempar: benua dadu + tetangganya
+          : new Set([st.die, ...(this.meta.adj[st.die] || [])]);                   // baru lempar: pulau dadu + tetangganya
       } else if (st.step === 'BLACK' && targets.size) {
-        const myRoom = this.figures.get([...targets][0]).room;                    // hitam: hanya benuamu
+        const myRoom = this.figures.get([...targets][0]).room;                    // hitam: hanya pulaumu
         lit = new Set([myRoom]);
       }
     }
@@ -966,11 +994,11 @@ export class Board3D {
     for (const [room, r] of Object.entries(this.roomMeshes)) {
       const isDest = dests.has(room), rolled = st && st.phase === 'PLAYING' && st.die === room && !this.rolling;
       const isFrom = from && room === from && dests.size;
-      const k = room === 'antartika' ? 0.25 : 0.5;
+      const k = room === 'papua' ? 0.25 : 0.5;
       const off = lit && !lit.has(room);                                     // tidak terlibat
       const valid = isDest || (lit && !from && st.step === 'MOVE' && lit.has(room)); // tujuan sah
       r.floorMat.emissiveIntensity = k * (isDest ? (hover === room ? 0.5 : 0.15 + 0.2 * pulse) : rolled || isFrom ? 0.12 : 0);
-      // border: hijau menyala = tujuan sah, merah = tidak terlibat, emas = benua asal bidak
+      // border: hijau menyala = tujuan sah, merah = tidak terlibat, emas = pulau asal bidak
       const mode = off ? 'off' : valid ? 'ok' : isFrom ? 'from' : 'none';
       if (r.mode !== mode) {
         r.mode = mode;

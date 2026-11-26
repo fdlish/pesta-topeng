@@ -1,32 +1,32 @@
 // Geometri papan — satu sumber kebenaran untuk server (posisi bidak) dan client (render 3D, dikirim via /meta).
 'use strict';
 
-const GAP = 1.2, CW = 7.4, CD = 4.6, AD = 4.6, MARGIN = 0.8;   // ukuran wilayah benua (lebar & lega)
+const GAP = 1.2, CW = 7.4, CD = 4.6, AD = 4.6, MARGIN = 0.8;   // ukuran wilayah pulau (lebar & lega)
 const CX = CW / 2 + GAP / 2, CZ = AD / 2 + GAP + CD / 2;
-// [Amerika][Antartika] / [   Eropa   ] / [Afrika][Asia] — Eropa di tengah terhubung ke semua benua.
+// [Sumatera][Kalimantan] / [   Jawa   ] / [Sulawesi][Papua] — Jawa di tengah terhubung ke semua pulau.
 const ROOMS = {
-  amerika: { x: -CX, z: -CZ, w: CW, d: CD }, antartika: { x: CX, z: -CZ, w: CW, d: CD },
-  eropa: { x: 0, z: 0, w: CW * 2 + GAP, d: AD },
-  afrika: { x: -CX, z: CZ, w: CW, d: CD }, asia: { x: CX, z: CZ, w: CW, d: CD },
+  sumatera: { x: -CX, z: -CZ, w: CW, d: CD }, kalimantan: { x: CX, z: -CZ, w: CW, d: CD },
+  jawa: { x: 0, z: 0, w: CW * 2 + GAP, d: AD },
+  sulawesi: { x: -CX, z: CZ, w: CW, d: CD }, papua: { x: CX, z: CZ, w: CW, d: CD },
 };
 const SEA_W = CW * 2 + GAP + MARGIN * 2, SEA_D = CD * 2 + AD + GAP * 2 + MARGIN * 2;
 const BRIDGE_Z = AD / 2 + GAP / 2, BX = CX + 1.9;
 const BRIDGES = [
-  { a: 'amerika', b: 'antartika', x: 0, z: -CZ, axis: 'x' },
-  { a: 'afrika', b: 'asia', x: 0, z: CZ, axis: 'x' },
-  { a: 'amerika', b: 'eropa', x: -BX, z: -BRIDGE_Z, axis: 'z' },
-  { a: 'antartika', b: 'eropa', x: BX, z: -BRIDGE_Z, axis: 'z' },
-  { a: 'afrika', b: 'eropa', x: -BX, z: BRIDGE_Z, axis: 'z' },
-  { a: 'asia', b: 'eropa', x: BX, z: BRIDGE_Z, axis: 'z' },
+  { a: 'sumatera', b: 'kalimantan', x: 0, z: -CZ, axis: 'x' },
+  { a: 'sulawesi', b: 'papua', x: 0, z: CZ, axis: 'x' },
+  { a: 'sumatera', b: 'jawa', x: -BX, z: -BRIDGE_Z, axis: 'z' },
+  { a: 'kalimantan', b: 'jawa', x: BX, z: -BRIDGE_Z, axis: 'z' },
+  { a: 'sulawesi', b: 'jawa', x: -BX, z: BRIDGE_Z, axis: 'z' },
+  { a: 'papua', b: 'jawa', x: BX, z: BRIDGE_Z, axis: 'z' },
 ];
 // properti (landmark & dekorasi) — posisi relatif tengah pulau, r = radius area yang tidak boleh ditempati bidak
 const BACK = -CD / 2 + 0.65, FRONT = CD / 2 - 0.6, OUT = CW / 2 - 0.65;
 const PROPS = {
-  amerika: [{ kind: 'city', dx: -OUT, dz: BACK, r: 0.55 }, { kind: 'cactus', dx: OUT, dz: BACK, r: 0.4 }],
-  antartika: [{ kind: 'ice', dx: OUT, dz: BACK, r: 0.6 }, { kind: 'penguins', dx: -OUT + 0.1, dz: BACK, r: 0.45 }],
-  eropa: [{ kind: 'tower', dx: -3.2, dz: -AD / 2 + 0.65, r: 0.45 }, { kind: 'windmill', dx: 3.2, dz: -AD / 2 + 0.65, r: 0.5 }],
-  afrika: [{ kind: 'pyramids', dx: OUT - 0.4, dz: BACK, r: 0.75 }, { kind: 'acacia', dx: -OUT, dz: FRONT, r: 0.55 }],
-  asia: [{ kind: 'pagoda', dx: -OUT, dz: BACK, r: 0.5 }, { kind: 'bamboo', dx: OUT, dz: FRONT, r: 0.45 }],
+  sumatera: [{ kind: 'gadang', dx: -OUT, dz: BACK, r: 0.6 }, { kind: 'sawit', dx: OUT, dz: BACK, r: 0.45 }],
+  kalimantan: [{ kind: 'tugu', dx: OUT, dz: BACK, r: 0.5 }, { kind: 'hutan', dx: -OUT + 0.1, dz: BACK, r: 0.5 }],
+  jawa: [{ kind: 'monas', dx: -3.2, dz: -AD / 2 + 0.65, r: 0.45 }, { kind: 'candi', dx: 3.2, dz: -AD / 2 + 0.65, r: 0.55 }],
+  sulawesi: [{ kind: 'tongkonan', dx: OUT - 0.2, dz: BACK, r: 0.65 }, { kind: 'pinisi', dx: -OUT, dz: FRONT, r: 0.55 }],
+  papua: [{ kind: 'honai', dx: -OUT, dz: BACK, r: 0.5 }, { kind: 'puncak', dx: OUT, dz: FRONT, r: 0.55 }],
 };
 
 const FIG_GAP = 0.9;     // jarak minimum antar-pusat bidak
@@ -48,7 +48,7 @@ function blockers(room, others) {
 }
 const clearance = (x, z, bl) => Math.min(Infinity, ...bl.map(b => Math.hypot(x - b.x, z - b.z) - b.r));
 
-// Cari tempat untuk bidak di sebuah benua.
+// Cari tempat untuk bidak di sebuah pulau.
 // preferred: titik yang dipilih pemain (dijepit ke dalam area, digeser ke titik bebas terdekat bila bertabrakan).
 // tanpa preferred: pilih titik yang paling lega (best-candidate sampling) agar bidak tersebar.
 function findSpot(room, others, preferred, rng = Math.random) {
