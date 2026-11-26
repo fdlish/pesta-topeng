@@ -79,7 +79,7 @@ function startGame(g, rng = Math.random) {
   if (g.players.length < MIN_PLAYERS) throw new Error(`Minimal ${MIN_PLAYERS} pemain`);
   const ids = shuffle(CHARACTERS.map(c => c.id), rng);
   g.players = shuffle(g.players, rng); // urutan giliran acak
-  g.players.forEach(p => { p.charId = ids.pop(); p.alive = true; p.cards = []; p.outAt = null; p.unmasks = 0; });
+  g.players.forEach(p => { p.charId = ids.pop(); p.alive = true; p.cards = []; p.outAt = null; p.unmasks = 0; p.forfeit = false; });
   g.outSeq = 0; g.standings = null;
   g.deck = ids; // sisa = tamu tak bersalah
   g.figures = {}; g.spots = {};
@@ -143,12 +143,27 @@ function checkWin(g) {
 // Juara 1 = yang bertahan; sisanya diurutkan dari yang paling akhir tersingkir.
 function standings(g) {
   const n = g.players.length;
-  const order = [...g.players].sort((a, b) => (a.alive ? -1 : b.alive ? 1 : (b.outAt || 0) - (a.outAt || 0)));
+  const tier = p => (p.alive ? 0 : p.forfeit ? 2 : 1); // yang keluar/menyerah selalu di bawah
+  const order = [...g.players].sort((a, b) => tier(a) - tier(b) || (b.outAt || 0) - (a.outAt || 0));
   return order.map((p, i) => {
     const placement = i + 1;
     const unmasks = p.unmasks || 0;
+    if (p.forfeit) return { id: p.id, placement, unmasks, forfeit: true, points: 0, breakdown: [{ key: 'forfeit', label: 'Keluar sebelum pesta selesai', pts: 0 }] };
     return { id: p.id, placement, unmasks, points: SCORING.points(placement, n, unmasks), breakdown: SCORING.breakdown(placement, n, unmasks) };
   });
+}
+
+// Pemain keluar di tengah permainan = menyerah. Karakternya tetap di papan sebagai tamu biasa
+// (identitasnya tidak dibuka), posisinya paling bawah, dan tidak mendapat poin.
+function forfeit(g, pid) {
+  const p = player(g, pid);
+  if (!p || g.phase !== 'PLAYING' || !p.alive) return false;
+  const wasTurn = currentPlayer(g)?.id === pid;
+  p.alive = false; p.forfeit = true; p.outAt = ++g.outSeq;
+  event(g, 'forfeit', null, { by: pid });
+  log(g, `${p.name} keluar dari pesta (menyerah).`);
+  if (wasTurn) nextTurn(g); else checkWin(g);
+  return true;
 }
 
 function nextTurn(g) {
@@ -232,7 +247,7 @@ function autoAct(g, rng = Math.random) {
 function resetToLobby(g) {
   g.standings = null; g.outSeq = 0;
   g.phase = 'LOBBY'; g.figures = {}; g.spots = {}; g.deck = []; g.step = null; g.die = null; g.winnerId = null; g.log = [];
-  g.players.forEach(p => { p.charId = null; p.alive = true; p.cards = []; p.outAt = null; p.unmasks = 0; });
+  g.players.forEach(p => { p.charId = null; p.alive = true; p.cards = []; p.outAt = null; p.unmasks = 0; p.forfeit = false; });
 }
 
 function publicView(g) {
@@ -242,7 +257,8 @@ function publicView(g) {
     phase: g.phase,
     players: g.players.map(p => ({
       id: p.id, name: p.name, connected: p.connected, alive: p.alive, cards: p.cards,
-      revealed: (!p.alive || over) ? p.charId : null,
+      revealed: ((!p.alive && !p.forfeit) || over) ? p.charId : null,
+      forfeit: !!p.forfeit,
     })),
     figures: g.figures,
     spots: g.spots,
@@ -269,5 +285,5 @@ function privateView(g, p) {
 module.exports = {
   ROOMS, ROOM_LABEL, ROOM_COLOR_NAME, ADJ, DIE, CHARACTERS, MIN_PLAYERS, MAX_PLAYERS,
   createGame, startGame, roll, move, kill, draw, autoAct, resetToLobby, legalMoves, blackOptions,
-  publicView, privateView, currentPlayer, player, standings,
+  publicView, privateView, currentPlayer, player, standings, forfeit,
 };

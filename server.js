@@ -328,6 +328,7 @@ io.on('connection', socket => {
     if (!room || !p) return;
     socket.leave(room.code); socket.data.code = null; socket.data.playerId = null;
     if (room.game.phase === 'LOBBY') return removePlayer(room, p.id);
+    if (room.game.phase === 'PLAYING') G.forfeit(room.game, p.id); // keluar di tengah permainan = menyerah
     p.connected = false; p.socketId = null; migrateHost(room); afterChange(room); checkEmpty(room);
   });
 

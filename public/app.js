@@ -62,6 +62,7 @@ for (const ev of ['pointerdown', 'touchend', 'keydown']) document.addEventListen
 document.addEventListener('click', e => { if (e.target.closest('button:not(.roll):not(#identityBtn)')) A.sfx.click(); });
 function syncAudioBtns() {
   for (const [id, on] of [['#musicBtn', A.isMusicOn()], ['#sfxBtn', A.isSfxOn()]]) { const b = $(id); b.setAttribute('aria-pressed', String(on)); b.classList.toggle('off', !on); }
+  const dm = document.getElementById('drawerMusicState'); if (dm) dm.textContent = A.isMusicOn() ? 'Nyala' : 'Mati';
 }
 $('#musicBtn').onclick = () => { A.setMusic(!A.isMusicOn()); syncAudioBtns(); toast(A.isMusicOn() ? 'Musik latar menyala' : 'Musik latar dimatikan'); };
 $('#sfxBtn').onclick = () => { A.setSfx(!A.isSfxOn()); syncAudioBtns(); toast(A.isSfxOn() ? 'Efek suara menyala' : 'Efek suara dimatikan'); };
@@ -153,6 +154,7 @@ socket.on('state', s => {
   // event dramatis (buka topeng / kartu) — antrikan, tampilkan setelah dadu berhenti
   if (s.lastEvent && s.lastEvent.id !== seenEventId) {
     if (seenEventId !== null && ['eliminated', 'killed', 'left'].includes(s.lastEvent.type)) fxQueue.push(s.lastEvent);
+    if (seenEventId !== null && s.lastEvent.type === 'forfeit' && s.lastEvent.by !== me?.id) { toast(`${pname(s.lastEvent.by)} keluar dari pesta`); A.sfx.poof && A.sfx.poof(); }
     seenEventId = s.lastEvent.id;
   }
   A.setIntensity(s.phase === 'PLAYING' && s.players.filter(p => p.alive).length <= 2 ? 1 : 0);
@@ -285,6 +287,33 @@ function rollDice() {
 }
 $('#camBtn').onclick = () => board && board.resetCamera();
 $('#logBtn').onclick = () => $('#drawer').classList.toggle('hidden');
+// ---------- keluar dari pesta ----------
+let exitFocus = null;
+function openExit() {
+  const s = state;
+  const playing = s && s.phase === 'PLAYING' && me && me.alive;
+  $('#exitTitle').textContent = playing ? 'Keluar dari pesta?' : 'Kembali ke beranda?';
+  $('#exitText').textContent = playing
+    ? 'Kamu dianggap menyerah: posisimu jadi paling bawah dan tidak dapat poin. Karaktermu tetap di papan sebagai tamu biasa, identitasnya tidak dibuka.'
+    : 'Kamu keluar dari room ini dan kembali ke beranda.';
+  $('#exitConfirm').textContent = playing ? 'Ya, menyerah & keluar' : 'Ya, keluar';
+  $('#exitCancel').textContent = playing ? 'Lanjut main' : 'Batal';
+  $('#drawer').classList.add('hidden');
+  exitFocus = document.activeElement;
+  $('#exitDialog').classList.remove('hidden');
+  setTimeout(() => $('#exitCancel').focus(), 30);
+}
+function closeExit() { $('#exitDialog').classList.add('hidden'); if (exitFocus && exitFocus.focus) exitFocus.focus(); }
+$('#exitBtn').onclick = openExit;
+$('#drawerExit').onclick = openExit;
+$('#exitCancel').onclick = closeExit;
+$('#exitConfirm').onclick = () => { closeExit(); Home.selectTab('play'); goHome(); toast('Kamu keluar dari pesta'); };
+$('#exitDialog').addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeExit();
+  if (e.key === 'Tab') { const a = $('#exitConfirm'), b = $('#exitCancel'); if (e.shiftKey && document.activeElement === a) { e.preventDefault(); b.focus(); } else if (!e.shiftKey && document.activeElement === b) { e.preventDefault(); a.focus(); } }
+});
+$('#exitDialog').addEventListener('click', e => { if (e.target.id === 'exitDialog') closeExit(); });
+$('#drawerMusic').onclick = () => $('#musicBtn').click();
 $('#drawerClose').onclick = () => $('#drawer').classList.add('hidden');
 
 // tombol "Kurangi animasi" (pilihan pemain, disimpan di perangkat)
@@ -302,7 +331,8 @@ function chip(p) {
   else if (p.avatarUrl) c.append(Home.avatar(p.name, p.avatarUrl, 'chip-av initial'));
   else c.append(initialAvatar(p.name, 'chip-av initial'));
   c.append(el('span', 'chip-name', p.name + (p.id === me.id ? ' (kamu)' : '')));
-  if (!p.connected) c.append(el('span', 'chip-off', 'offline'));
+  if (p.forfeit) c.append(el('span', 'chip-off', 'keluar'));
+  else if (!p.connected) c.append(el('span', 'chip-off', 'offline'));
   if (p.cards.length) { const cc = el('span', 'chip-cards'); cc.innerHTML = ICON.card; cc.append(String(p.cards.length)); cc.title = `${p.cards.length} kartu`; c.append(cc); }
   return c;
 }

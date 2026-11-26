@@ -67,6 +67,9 @@ Kode 3D ada di `public/board3d.js`. Untuk mengganti model bidak dengan file `.gl
 - **Papan peringkat**: diurutkan dari total poin (seri dipecah jumlah kemenangan), dengan podium 3 besar, baris "kamu" yang selalu terlihat, dan tingkat: Pendatang Baru → Perunggu (150) → Perak (500) → Emas (1.200) → Platina (2.500) → Berlian (5.000) → Legenda Topeng (10.000).
 - **Profil**: ID (ketuk untuk salin), tingkat + progres, poin, peringkat, jumlah pesta, kemenangan, rasio menang, topeng dibongkar, dan 8 pesta terakhir.
 
+### Keluar di tengah permainan
+Tombol **keluar** (ikon pintu merah di kanan atas, juga di Menu) meminta konfirmasi dulu. Keluar saat pesta berjalan = **menyerah**: posisimu paling bawah, 0 poin, dan karaktermu tetap di papan sebagai tamu biasa (identitasnya tidak dibuka). Pemain lain mendapat notifikasi. Menutup tab tanpa menekan tombol keluar tidak dianggap menyerah: kamu bisa masuk lagi lewat link yang sama, dan selama offline giliranmu dimainkan otomatis.
+
 ### Sistem poin
 Juara 1 = pemain terakhir yang masih bertopeng. Juara 2, 3, dan seterusnya ditentukan dari siapa yang **paling akhir tersingkir**.
 

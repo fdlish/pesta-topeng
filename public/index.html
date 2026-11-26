@@ -172,6 +172,7 @@
         <button id="sfxBtn" class="icon-btn" aria-label="Efek suara" aria-pressed="true" title="Efek suara"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path class="wave" d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/><path class="slash" d="M3 3l18 18"/></svg></button>
         <button id="camBtn" class="icon-btn" aria-label="Atur ulang kamera" title="Atur ulang kamera"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></button>
         <button id="logBtn" class="icon-btn" aria-label="Catatan pesta" title="Catatan pesta"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></button>
+        <button id="exitBtn" class="icon-btn exit-btn" aria-label="Keluar dari pesta" title="Keluar dari pesta"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/></svg></button>
       </div>
     </header>
     <div id="playerStrip" class="player-strip"></div>
@@ -187,11 +188,24 @@
       <div id="actionPanel" class="action-panel"></div>
     </div>
     <aside id="drawer" class="drawer hidden">
-      <div class="drawer-head"><b>Catatan pesta</b><button id="drawerClose" class="icon-btn" aria-label="Tutup"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+      <div class="drawer-head"><b>Menu &amp; catatan</b><button id="drawerClose" class="icon-btn" aria-label="Tutup"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
       <label class="setting"><input type="checkbox" id="reduceMotion"><span>Kurangi animasi</span><small>Matikan sinematik, lompatan bidak & putaran dadu</small></label>
+      <button id="drawerMusic" class="setting-btn" type="button"><span>Musik latar</span><b id="drawerMusicState">Nyala</b></button>
+      <button id="drawerExit" class="btn danger drawer-exit" type="button"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/></svg><span>Keluar dari pesta</span></button>
       <ul id="gamePlayers" class="plist compact"></ul>
       <ol id="log" class="log"></ol>
     </aside>
+
+    <!-- konfirmasi keluar -->
+    <div id="exitDialog" class="modal hidden" role="alertdialog" aria-modal="true" aria-labelledby="exitTitle" aria-describedby="exitText">
+      <div class="modal-card exit-card">
+        <div class="exit-ic" aria-hidden="true"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/></svg></div>
+        <h2 id="exitTitle">Keluar dari pesta?</h2>
+        <p id="exitText" class="help center"></p>
+        <button id="exitConfirm" class="btn danger" type="button">Ya, keluar</button>
+        <button id="exitCancel" class="btn ghost" type="button">Lanjut main</button>
+      </div>
+    </div>
   </section>
 
   <!-- GAME OVER -->
