@@ -79,7 +79,7 @@ function startGame(g, rng = Math.random) {
   if (g.players.length < MIN_PLAYERS) throw new Error(`Minimal ${MIN_PLAYERS} pemain`);
   const ids = shuffle(CHARACTERS.map(c => c.id), rng);
   g.players = shuffle(g.players, rng); // urutan giliran acak
-  g.players.forEach(p => { p.charId = ids.pop(); p.alive = true; p.cards = []; p.outAt = null; p.unmasks = 0; p.forfeit = false; });
+  g.players.forEach(p => { p.charId = ids.pop(); p.alive = true; p.cards = []; p.outAt = null; p.unmasks = 0; p.unmasksH = 0; p.forfeit = false; });
   g.outSeq = 0; g.standings = null;
   g.deck = ids; // sisa = tamu tak bersalah
   g.figures = {}; g.spots = {};
@@ -88,7 +88,7 @@ function startGame(g, rng = Math.random) {
     g.figures[id] = room;
     g.spots[id] = LAYOUT.findSpot(room, othersIn(g, room, id), null, rng); // tersebar lega
   });
-  g.turnIdx = 0; g.step = null; g.die = null; g.winnerId = null; g.log = []; g.lastEvent = null;
+  g.turnIdx = 0; g.step = null; g.die = null; g.winnerId = null; g.log = []; g.lastEvent = null; g.moves = [];
   // fase ORDER: semua pemain melempar 2 dadu angka (1–6); total tertinggi jalan duluan, seri = lempar ulang
   g.phase = 'ORDER';
   g.order = { round: 1, pending: g.players.map(p => p.id), scores: {}, last: {}, tied: [], done: null };
@@ -123,7 +123,7 @@ function assertTurn(g, pid, step) {
 function eliminate(g, p, how, by = null) {
   p.alive = false;
   p.outAt = ++g.outSeq; // urutan tersingkir → menentukan juara 2..8
-  if (by) { const k = player(g, by); if (k) k.unmasks = (k.unmasks || 0) + 1; }
+  if (by) { const k = player(g, by); if (k) { k.unmasks = (k.unmasks || 0) + 1; if (!p.bot) k.unmasksH = (k.unmasksH || 0) + 1; } }
   const room = g.figures[p.charId] || null; // pulau tempat topeng terbuka
   delete g.figures[p.charId]; delete g.spots[p.charId];
   event(g, 'eliminated', p.charId, { victim: p.id, by, self: !by, room });
@@ -147,10 +147,20 @@ function standings(g) {
   const n = g.players.length;
   const tier = p => (p.alive ? 0 : p.forfeit ? 2 : 1); // yang keluar/menyerah selalu di bawah
   const order = [...g.players].sort((a, b) => tier(a) - tier(b) || (b.outAt || 0) - (a.outAt || 0));
+  // Ada bot? Poin dihitung antar-manusia saja (bot tidak bisa dipakai menimbun poin);
+  // main sendirian melawan bot = latihan, tanpa poin.
+  const withBots = g.players.some(p => p.bot);
+  const humans = order.filter(p => !p.bot);
   return order.map((p, i) => {
     const placement = i + 1;
     const unmasks = p.unmasks || 0;
+    if (p.bot) return { id: p.id, placement, unmasks, bot: true, points: 0, breakdown: [] };
     if (p.forfeit) return { id: p.id, placement, unmasks, forfeit: true, points: 0, breakdown: [{ key: 'forfeit', label: 'Keluar sebelum pesta selesai', pts: 0 }] };
+    if (withBots) {
+      if (humans.length < 2) return { id: p.id, placement, unmasks, practice: true, points: 0, breakdown: [{ key: 'practice', label: 'Main lawan bot: latihan, tanpa poin', pts: 0 }] };
+      const hp = humans.indexOf(p) + 1, hn = humans.length, hu = p.unmasksH || 0;
+      return { id: p.id, placement, unmasks, points: SCORING.points(hp, hn, hu), breakdown: [...SCORING.breakdown(hp, hn, hu), { key: 'bots', label: 'Bot tidak dihitung dalam poin', pts: 0 }] };
+    }
     return { id: p.id, placement, unmasks, points: SCORING.points(placement, n, unmasks), breakdown: SCORING.breakdown(placement, n, unmasks) };
   });
 }
@@ -242,6 +252,9 @@ function move(g, pid, charId, to, spot) {
   const ok = legalMoves(g, g.die).some(m => m.charId === charId && m.to === to);
   if (!ok) throw new Error('Gerakan tidak sah');
   const from = g.figures[charId];
+  const fromCount = Object.values(g.figures).filter(r => r === from).length;
+  const toCount = Object.values(g.figures).filter(r => r === to).length;
+  (g.moves = g.moves || []).push({ by: p.id, charId, from, to, fromCount, toCount });
   g.figures[charId] = to;
   g.spots[charId] = LAYOUT.findSpot(to, othersIn(g, to, charId), spot && typeof spot === 'object' ? { x: Number(spot.x), z: Number(spot.z) } : null);
   event(g, 'move', charId, { from, to, by: p.id });
@@ -289,10 +302,80 @@ function autoAct(g, rng = Math.random) {
   }
 }
 
+
+// ---------- bot ----------
+// Tiga kepribadian. kill = ambang peluang untuk membuka topeng (makin kecil makin nekat),
+// selfMove = penalti menggeser bidak sendiri (makin besar makin pandai menyamar), safe = bobot menjaga bidak tidak sendirian.
+const BOT_STYLES = {
+  nekat: { label: 'Nekat', kill: 0.24, selfMove: 0.4, safe: 1.0, attack: 1.6 },
+  licik: { label: 'Licik', kill: 0.5, selfMove: 1.8, safe: 1.1, attack: 1.0 },
+  waspada: { label: 'Waspada', kill: 0.4, selfMove: 0.8, safe: 2.0, attack: 0.8 },
+};
+const BOT_NAMES = ['Pak Bambang', 'Bu Tejo', 'Mas Dimas', 'Mbak Sri', 'Om Jarwo', 'Tante Lina', 'Bang Ucok', 'Kang Asep', 'Cik Mei', 'Daeng Rudi', 'Uda Rizal', 'Bli Komang', 'Kak Ros', 'Opung Tiur'];
+
+// Perkiraan "bau pemain" tiap bidak dari cara orang lain menggesernya.
+function botSuspicion(g, bot) {
+  const s = {};
+  for (const id of Object.keys(g.figures)) if (id !== bot.charId) s[id] = 1;
+  for (const m of g.moves || []) {
+    if (m.by === bot.id || !(m.charId in s)) continue;
+    if (m.fromCount <= 2) s[m.charId] += 0.7;   // diselamatkan dari pulau sepi
+    if (m.toCount >= 2) s[m.charId] += 0.35;    // dibawa ke tempat ramai
+    if (m.toCount === 0) s[m.charId] -= 0.5;    // malah dibuang sendirian → kemungkinan bukan miliknya
+  }
+  for (const id in s) s[id] = Math.max(0.2, s[id]);
+  return s;
+}
+function botOdds(g, bot) { // peluang tiap bidak adalah milik lawan yang masih hidup
+  const s = botSuspicion(g, bot), ids = Object.keys(s);
+  const k = alivePlayers(g).filter(p => p.id !== bot.id).length;
+  const mean = ids.reduce((a, id) => a + s[id], 0) / (ids.length || 1);
+  const base = ids.length ? k / ids.length : 0;
+  const odds = {};
+  for (const id of ids) odds[id] = Math.min(0.95, base * s[id] / mean);
+  return odds;
+}
+function botAct(g, rng = Math.random) {
+  const p = currentPlayer(g);
+  if (!p) return;
+  const st = BOT_STYLES[p.botStyle] || BOT_STYLES.licik;
+  if (g.step === 'ROLL') return roll(g, p.id, rng);
+  const odds = botOdds(g, p);
+  if (g.step === 'MOVE') {
+    let best = null, bestScore = -Infinity;
+    for (const m of legalMoves(g, g.die)) {
+      const fig = { ...g.figures, [m.charId]: m.to };
+      const count = r => Object.values(fig).filter(x => x === r).length;
+      const myRoom = fig[p.charId], company = count(myRoom) - 1;
+      let sc = company === 0 ? -6 * st.safe : Math.min(company, 3) * 0.9 * st.safe;
+      if (m.charId === p.charId) sc -= st.selfMove;
+      for (const r of ROOMS) { // pulau dengan satu bidak = bidak itu rawan terbongkar
+        if (r === myRoom) continue;
+        const ids = Object.keys(fig).filter(id => fig[id] === r);
+        if (ids.length === 1) sc += 1.6 * st.attack * (odds[ids[0]] || 0);
+      }
+      const targets = Object.keys(fig).filter(id => id !== p.charId && fig[id] === myRoom);
+      if (targets.length) sc += 0.8 * st.attack * Math.max(...targets.map(id => odds[id] || 0));
+      sc += rng() * 0.7; // sedikit acak agar tidak mudah ditebak
+      if (sc > bestScore) { bestScore = sc; best = m; }
+    }
+    return move(g, p.id, best.charId, best.to);
+  }
+  if (g.step === 'BLACK') {
+    const o = blackOptions(g, p);
+    const target = o.killTargets.slice().sort((a, b) => (odds[b] || 0) - (odds[a] || 0))[0];
+    const endgame = alivePlayers(g).length === 2;
+    const thr = st.kill * (endgame ? 0.75 : 1);
+    if (target && (!o.canDraw || (odds[target] || 0) >= thr)) return kill(g, p.id, target);
+    if (o.canDraw) return draw(g, p.id);
+    return kill(g, p.id, target);
+  }
+}
+
 function resetToLobby(g) {
   g.standings = null; g.outSeq = 0; g.order = null;
   g.phase = 'LOBBY'; g.figures = {}; g.spots = {}; g.deck = []; g.step = null; g.die = null; g.winnerId = null; g.log = [];
-  g.players.forEach(p => { p.charId = null; p.alive = true; p.cards = []; p.outAt = null; p.unmasks = 0; p.forfeit = false; });
+  g.players.forEach(p => { p.charId = null; p.alive = true; p.cards = []; p.outAt = null; p.unmasks = 0; p.unmasksH = 0; p.forfeit = false; });
 }
 
 function publicView(g) {
@@ -304,6 +387,7 @@ function publicView(g) {
       id: p.id, name: p.name, connected: p.connected, alive: p.alive, cards: p.cards,
       revealed: ((!p.alive && !p.forfeit) || over) ? p.charId : null,
       forfeit: !!p.forfeit,
+      bot: p.bot ? (BOT_STYLES[p.botStyle] || {}).label || 'Bot' : null,
     })),
     figures: g.figures,
     spots: g.spots,
@@ -331,5 +415,5 @@ function privateView(g, p) {
 module.exports = {
   ROOMS, ROOM_LABEL, ROOM_COLOR_NAME, ADJ, DIE, CHARACTERS, MIN_PLAYERS, MAX_PLAYERS,
   createGame, startGame, roll, move, kill, draw, autoAct, resetToLobby, legalMoves, blackOptions,
-  publicView, privateView, currentPlayer, player, standings, forfeit, orderRoll, orderAutoRoll,
+  publicView, privateView, currentPlayer, player, standings, forfeit, orderRoll, orderAutoRoll, botAct, BOT_STYLES, BOT_NAMES,
 };

@@ -269,7 +269,7 @@ function render() {
 function playerItem(p, opts = {}) {
   const li = el('li', (p.alive ? '' : 'dead') + (p.id === me.id ? ' self' : ''));
   const left = el('span', 'pname');
-  left.append(Home.avatar(p.name, p.avatarUrl));
+  const av = Home.avatar(p.name, p.avatarUrl); if (p.bot) av.classList.add('bot'); left.append(av);
   const nm = el('span', 'pn-wrap');
   const line = el('span', 'pn-line');
   line.append(el('span', 'pn', p.name));
@@ -278,7 +278,8 @@ function playerItem(p, opts = {}) {
   nm.append(line);
   // baris kedua: identitas akun, tamu, atau offline (bukan tumpukan badge)
   const sub = el('small', 'pid');
-  if (!p.connected) { sub.classList.add('off'); sub.textContent = 'offline'; }
+  if (p.bot) sub.textContent = `bot · ${p.bot}`;
+  else if (!p.connected) { sub.classList.add('off'); sub.textContent = 'offline'; }
   else if (p.guest) sub.textContent = 'tamu · tanpa poin';
   else if (p.publicId) sub.textContent = '#' + p.publicId + (p.tier && p.tier.min > 0 && !opts.game ? ' · ' + p.tier.name : '');
   if (sub.textContent) nm.append(sub);
@@ -290,6 +291,12 @@ function playerItem(p, opts = {}) {
     if (p.cards.length) right.append(el('span', 'cards', `${p.cards.length}/3 kartu`));
     if (p.id === state.turnPlayerId) li.classList.add('turn');
   }
+  if (opts.removable && p.bot) {
+    const x = el('button', 'icon-btn sm kick'); x.type = 'button'; x.setAttribute('aria-label', `Keluarkan ${p.name}`); x.title = 'Keluarkan bot';
+    x.innerHTML = '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>';
+    x.onclick = () => { A.sfx.click && A.sfx.click(); emit('remove_bot', { id: p.id }); };
+    right.append(x);
+  }
   li.append(right);
   return li;
 }
@@ -300,15 +307,42 @@ function renderLobby() {
   $('#lobbyCount').textContent = `${state.players.length}/${META.maxPlayers}`;
   const ul = $('#lobbyPlayers');
   const known = new Set([...ul.children].map(li => li.dataset.id));
-  ul.replaceChildren(...state.players.map(p => { const li = playerItem(p); li.dataset.id = p.id; if (!known.has(p.id)) li.classList.add('pop'); return li; }));
-  for (let i = state.players.length; i < Math.max(META.minPlayers, state.players.length); i++) ul.append(el('li', 'slot', 'Menunggu pemain…'));
   const isHost = me.id === state.hostId, enough = state.players.length >= META.minPlayers;
+  ul.replaceChildren(...state.players.map(p => { const li = playerItem(p, { removable: isHost }); li.dataset.id = p.id; if (!known.has(p.id)) li.classList.add('pop'); return li; }));
+  for (let i = state.players.length; i < Math.max(META.minPlayers, state.players.length); i++) ul.append(el('li', 'slot', 'Kursi kosong'));
+  renderBotRow(isHost);
+  const humans = state.players.filter(p => !p.bot).length, bots = state.players.length - humans;
   renderVisRow(isHost);
   $('#startBtn').classList.toggle('hidden', !isHost);
   $('#startBtn').disabled = !enough;
   $('#lobbyHint').textContent = !enough
-    ? `Butuh minimal ${META.minPlayers} pemain. Bagikan kode di atas!`
+    ? (isHost ? `Butuh minimal ${META.minPlayers} pemain. Bagikan kode, atau isi kursi kosong dengan bot.` : `Butuh minimal ${META.minPlayers} pemain. Ajak teman lewat kode di atas!`)
+    : bots && humans < 2 ? 'Main lawan bot dihitung latihan: seru, tapi tanpa poin.'
+    : bots ? 'Ada bot di meja: poin hanya dihitung antar-manusia.'
     : isHost ? 'Bisa mulai kapan saja. Room menampung sampai 8 pemain.' : `Menunggu ${pname(state.hostId)} memulai…`;
+}
+
+const BOT_PICK = [
+  ['nekat', 'Nekat', 'Gampang curiga, cepat buka topeng'],
+  ['licik', 'Licik', 'Pandai menyamar, suka buka kartu'],
+  ['waspada', 'Waspada', 'Selalu cari keramaian'],
+];
+function renderBotRow(isHost) {
+  const row = $('#botRow'), full = state.players.length >= META.maxPlayers;
+  const k = `${isHost}:${full}`;
+  if (row.dataset.k === k) return;
+  row.dataset.k = k; row.replaceChildren();
+  row.classList.toggle('hidden', !isHost || full);
+  if (!isHost || full) return;
+  row.append(el('p', 'bot-row-title', 'Tambah bot'));
+  const grid = el('div', 'bot-grid');
+  for (const [id, label, desc] of BOT_PICK) {
+    const b = el('button', 'bot-pick'); b.type = 'button';
+    b.append(el('b', null, label), el('small', null, desc));
+    b.onclick = () => { b.disabled = true; A.sfx.click && A.sfx.click(); emit('add_bot', { style: id }).then(r => { b.disabled = false; if (r && r.error) toast(r.error); }); };
+    grid.append(b);
+  }
+  row.append(grid);
 }
 
 function renderVisRow(isHost) {

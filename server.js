@@ -73,7 +73,7 @@ function roomSummary(room) {
 }
 function publicRooms() {
   return [...rooms.values()]
-    .filter(r => r.visibility === 'public' && r.game.players.some(p => p.connected))
+    .filter(r => r.visibility === 'public' && r.game.players.some(p => p.connected && !p.bot))
     .map(roomSummary)
     .sort((a, b) => (a.phase === 'LOBBY' ? 0 : 1) - (b.phase === 'LOBBY' ? 0 : 1) || b.createdAt - a.createdAt)
     .slice(0, 40);
@@ -145,16 +145,32 @@ function scheduleTurn(room) {
   room.turnTimer = null; room.turnEndsAt = null;
   const cp = G.currentPlayer(room.game);
   if (!cp) return;
-  const ms = cp.connected ? TURN_MS : OFFLINE_TURN_MS;
+  // bot "berpikir" sebentar; setelah dadu dilempar tunggu animasi dadu/terbang selesai di layar pemain
+  const ms = cp.bot ? (room.game.step === 'ROLL' ? rnd(1300, 2200) : rnd(2600, 3800)) : cp.connected ? TURN_MS : OFFLINE_TURN_MS;
   room.turnEndsAt = Date.now() + ms;
   room.turnTimer = setTimeout(() => {
-    try { G.autoAct(room.game); } catch (e) { console.error('autoAct', e.message); }
+    try { cp.bot ? G.botAct(room.game) : G.autoAct(room.game); } catch (e) { console.error('autoAct', e.message); try { G.autoAct(room.game); } catch {} }
     afterChange(room);
   }, ms);
 }
 
 // Setiap perubahan state lewat sini: atur ulang timer jika giliran/step berubah, lalu sync.
 const ORDER_MS = Number(process.env.ORDER_MS) || 15000;
+const rnd = (a, b) => a + Math.floor(Math.random() * (b - a));
+function scheduleBotOrder(room) { // bot melempar 2 dadu urutan dengan jeda acak, seperti manusia
+  const g = room.game;
+  room.botOrder = room.botOrder || {};
+  for (const id of g.order.pending) {
+    const b = G.player(g, id);
+    const key = `${id}:${g.order.round}`;
+    if (!b || !b.bot || room.botOrder[key]) continue;
+    room.botOrder[key] = setTimeout(() => {
+      if (g.phase !== 'ORDER' || !g.order.pending.includes(id)) return;
+      try { G.orderRoll(g, id); } catch (e) { console.error('botOrder', e.message); }
+      afterChange(room);
+    }, rnd(900, 2600));
+  }
+}
 function scheduleOrder(room) {
   clearTimeout(room.turnTimer);
   room.turnEndsAt = Date.now() + ORDER_MS;
@@ -170,6 +186,7 @@ function afterChange(room) {
     if (off.length) G.orderAutoRoll(g, off);
   }
   if (g.phase === 'ORDER') {
+    scheduleBotOrder(room);
     const key = `O:${g.order.round}`;
     if (key !== room.turnKey) { room.turnKey = key; scheduleOrder(room); }
     return sync(room);
@@ -183,7 +200,7 @@ function afterChange(room) {
 function migrateHost(room) {
   const host = G.player(room.game, room.hostId);
   if (host && host.connected) return;
-  const next = room.game.players.find(p => p.connected);
+  const next = room.game.players.find(p => p.connected && !p.bot);
   if (next) room.hostId = next.id;
 }
 
@@ -191,13 +208,13 @@ function removePlayer(room, pid) {
   const g = room.game;
   g.players = g.players.filter(p => p.id !== pid);
   migrateHost(room);
-  if (g.players.length === 0) { clearTimeout(room.turnTimer); rooms.delete(room.code); broadcastRooms(); return; }
+  if (!g.players.some(p => !p.bot)) { clearTimeout(room.turnTimer); rooms.delete(room.code); broadcastRooms(); return; } // tinggal bot → bubarkan
   afterChange(room);
 }
 
 function checkEmpty(room) {
   clearTimeout(room.emptyTimer);
-  if (room.game.players.some(p => p.connected)) return;
+  if (room.game.players.some(p => p.connected && !p.bot)) return;
   broadcastRooms();
   room.emptyTimer = setTimeout(() => { clearTimeout(room.turnTimer); rooms.delete(room.code); broadcastRooms(); }, EMPTY_ROOM_MS);
 }
@@ -327,6 +344,25 @@ io.on('connection', socket => {
     catch (e) { reply(cb, { error: e.message }); }
   };
 
+  socket.on('add_bot', action((room, p, { style } = {}) => {
+    const g = room.game;
+    if (p.id !== room.hostId) throw new Error('Hanya host yang bisa menambah bot');
+    if (g.phase !== 'LOBBY') throw new Error('Bot hanya bisa ditambah di lobby');
+    if (g.players.length >= G.MAX_PLAYERS) throw new Error('Room penuh (maks 8)');
+    const used = new Set(g.players.map(x => x.name.toLowerCase()));
+    const names = G.BOT_NAMES.filter(n => !used.has(n.toLowerCase()));
+    const styles = Object.keys(G.BOT_STYLES);
+    g.players.push({ id: nanoid(10), name: names[Math.floor(Math.random() * names.length)] || `Bot ${g.players.length + 1}`, bot: true,
+      botStyle: styles.includes(style) ? style : styles[Math.floor(Math.random() * styles.length)], connected: true, socketId: null, alive: true, cards: [], charId: null });
+  }));
+  socket.on('remove_bot', action((room, p, { id } = {}) => {
+    const g = room.game;
+    if (p.id !== room.hostId) throw new Error('Hanya host');
+    if (g.phase !== 'LOBBY') throw new Error('Bot hanya bisa dikeluarkan di lobby');
+    const b = G.player(g, id);
+    if (!b || !b.bot) throw new Error('Bukan bot');
+    g.players = g.players.filter(x => x.id !== id);
+  }));
   socket.on('start_game', action((room, p) => {
     if (p.id !== room.hostId) throw new Error('Hanya host yang bisa memulai');
     G.startGame(room.game);
@@ -339,7 +375,8 @@ io.on('connection', socket => {
   socket.on('play_again', action((room, p) => {
     if (p.id !== room.hostId) throw new Error('Hanya host');
     if (room.game.phase !== 'GAME_OVER') throw new Error('Game belum selesai');
-    room.game.players = room.game.players.filter(x => x.connected);
+    room.game.players = room.game.players.filter(x => x.connected || x.bot);
+    room.botOrder = {};
     G.resetToLobby(room.game);
     room.awarded = false;
   }));
