@@ -254,7 +254,7 @@ function initBoard() {
         if (killSel === id) { killSel = null; emit('kill', { targetId: id }); } else { killSel = id; A.sfx.pick(); vibrate(20); renderGame(); }
         return;
       }
-      toast(`${c.name} — di ${META.roomLabel[room] || ''}`);
+      board.peekFigure(id); A.sfx.hover && A.sfx.hover(); // label profesi muncul di atas bidak
     },
     onDragStart(id) { A.sfx.pick(); vibrate(15); if (selected !== id) { selected = id; renderGame(); } },
     onDrop(id, room, spot) { A.sfx.land(); vibrate(25); emit('move', { charId: id, to: room, spot }); selected = null; renderGame(); },

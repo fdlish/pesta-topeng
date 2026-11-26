@@ -627,6 +627,27 @@ export class Board3D {
     for (const [room, L] of Object.entries(LAYOUT)) if (Math.abs(x - L.x) <= L.w / 2 + 0.2 && Math.abs(z - L.z) <= L.d / 2 + 0.2) return room;
     return null;
   }
+  // Ketuk bidak mana pun → label nama profesinya muncul di atas kepala selama ±2,5 detik.
+  peekFigure(id) {
+    if (!this.figures.has(id)) return;
+    this.peek = { id, until: performance.now() + 3000 };
+    if (!this.peekEl) { this.peekEl = document.createElement('div'); this.peekEl.className = 'peek-label'; this.peekEl.setAttribute('role', 'status'); this.container.append(this.peekEl); }
+    const c = this.meta.characters.find(x => x.id === id);
+    this.peekEl.textContent = c ? c.name : id;
+    this.peekEl.classList.remove('show'); void this.peekEl.offsetWidth; this.peekEl.classList.add('show');
+    this.dirty = true;
+  }
+  // label DOM mengikuti kepala bidak (tajam di semua layar, tidak tertutup objek 3D)
+  updatePeekLabel() {
+    const el = this.peekEl; if (!el) return;
+    const f = this.peek && this.figures.get(this.peek.id);
+    if (!f || !f.group.visible) { el.classList.remove('show'); return; }
+    const v = f.group.position.clone(); v.y += (2.02 + (f.lift || 0)) * FIG_S; v.project(this.camera);
+    const r = this.renderer.domElement.getBoundingClientRect(), c = this.container.getBoundingClientRect();
+    const x = r.left - c.left + ((v.x + 1) / 2) * r.width, y = r.top - c.top + ((1 - v.y) / 2) * r.height;
+    el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -100%)`;
+  }
+
   tap(e) {
     this.setPointer(e);
     if (this.ui.canRoll && this.raycaster.intersectObject(this.die, false).length) { this.h.onDiceTap && this.h.onDiceTap(); return; }
@@ -873,6 +894,7 @@ export class Board3D {
     const drag = this.drag && this.drag.started ? this.drag : null;
     const pulse = REDUCED ? 0.5 : 0.5 + 0.5 * Math.sin(time * 5);
 
+    if (this.peek && performance.now() > this.peek.until) { this.peek = null; this.dirty = true; if (this.peekEl) this.peekEl.classList.remove('show'); }
     for (const [id, f] of this.figures) {
       if (!f.group.visible || f.removing) continue;
       if (f.cine) { // bidak yang sedang dipindahkan pemain lain: cincin biru berdenyut + label nama
@@ -900,7 +922,7 @@ export class Board3D {
       f.inner.position.y = f.lift;
       f.body.material.emissiveIntensity = sel ? 0.12 : 0;
       f.star.visible = false;
-      f.tag.visible = !!(sel || targets.has(id)) && ui.mine !== id;
+      f.tag.visible = !!(sel || targets.has(id)) && ui.mine !== id && !(this.peek && this.peek.id === id);
       f.tag.position.y = 1.62 + f.lift;
     }
     // penanda "INI KAMU" mengikuti karaktermu (juga saat sedang diseret / dipindah pemain lain)
@@ -977,7 +999,8 @@ export class Board3D {
       if (this.waveAcc > 0.05) { this.waveTex.offset.x = time * 0.012; this.waveTex.offset.y = Math.sin(time * 0.3) * 0.02; this.waveAcc = 0; waveTick = true; }
     }
     const camMoved = this.updateCinematicCamera(dt) || this.controls.update();
-    const animating = this.tweens.length || this.camMode || showMe || (ui.canRoll && !this.rolling) || shading || drag || movable.size || targets.size || dests.size || ui.selected || ui.killSel;
+    const animating = this.tweens.length || this.camMode || showMe || this.peek || (ui.canRoll && !this.rolling) || shading || drag || movable.size || targets.size || dests.size || ui.selected || ui.killSel;
+    if (this.peek) this.updatePeekLabel();
     if (!animating && !camMoved && !this.dirty && !waveTick) return;
     this.dirty = false;
     this.renderer.render(this.scene, this.camera);

@@ -657,3 +657,15 @@ html, body { overflow-x: clip; }
 /* layar sempit: tombol musik pindah ke menu agar tombol keluar muat */
 @media (max-width: 430px) { #musicBtn { display: none; } }
 @media (min-width: 431px) { #drawerMusic { display: none; } }
+
+/* label profesi saat bidak diketuk */
+.board3d { position: relative; }
+.peek-label { position: absolute; left: 0; top: 0; z-index: 4; pointer-events: none; white-space: nowrap;
+  padding: 6px 14px 7px; border-radius: 999px; background: rgba(11,14,19,.92); border: 1.5px solid var(--brass-hi);
+  color: var(--text); font: 700 .95rem var(--sans); letter-spacing: .02em; box-shadow: 0 8px 22px -8px rgba(0,0,0,.9);
+  opacity: 0; transition: opacity .18s var(--ease); will-change: transform; }
+.peek-label::after { content: ""; position: absolute; left: 50%; bottom: -6px; width: 10px; height: 10px; transform: translateX(-50%) rotate(45deg);
+  background: rgba(11,14,19,.92); border-right: 1.5px solid var(--brass-hi); border-bottom: 1.5px solid var(--brass-hi); }
+.peek-label.show { opacity: 1; animation: peekPop .32s var(--spring); }
+@keyframes peekPop { from { scale: .7; } to { scale: 1; } }
+body.reduce-motion .peek-label.show { animation: none; }
