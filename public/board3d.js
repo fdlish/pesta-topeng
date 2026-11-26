@@ -748,6 +748,25 @@ export class Board3D {
   // ================= animasi =================
   cancelTweens(f) { for (const t of this.tweens) if (t.f === f) t.dead = true; }
   tween(dur, fn, done, f) { this.tweens.push({ t: 0, dur, fn, done, f }); }
+  // seluruh meja bergetar sebentar (saat topeng terbongkar). Menggeser scene, bukan kamera, agar kontrol orbit tidak bergeser.
+  shake(strength = 0.1, dur = 0.5) {
+    if (REDUCED) return;
+    this.tween(dur, t => { const k = strength * Math.pow(1 - t, 2); this.scene.position.set((Math.random() - 0.5) * k, (Math.random() - 0.5) * k * 0.4, (Math.random() - 0.5) * k); },
+      () => this.scene.position.set(0, 0, 0), null);
+  }
+  // dadu hitam: semua tamu gemetar & melompat kecil, kecuali yang sedang dipindah/dihapus
+  panic() {
+    if (REDUCED) return;
+    for (const f of this.figures.values()) {
+      if (!f.group.visible || f.removing || f.dragging) continue;
+      const delay = Math.random() * 0.25, dur = 0.9 + delay, base = f.inner.position.y;
+      this.tween(dur, t => {
+        const k = Math.max(0, (t * dur - delay) / 0.9);
+        f.inner.rotation.z = Math.sin(k * Math.PI * 9) * 0.16 * (1 - k);
+        f.inner.position.y = base + Math.abs(Math.sin(k * Math.PI * 2)) * 0.35 * (1 - k);
+      }, () => { f.inner.rotation.z = 0; f.inner.position.y = base; }, null);
+    }
+  }
   hop(f, a, b) {
     const h = 1.0 + a.distanceTo(b) * 0.12;
     this.tween(0.7, t => {

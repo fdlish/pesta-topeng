@@ -95,7 +95,8 @@ function goHome() { socket.emit('leave'); store.clearRoom(); state = null; histo
 $('#leaveBtn').onclick = goHome;
 $('#homeBtn').onclick = () => { goHome(); Home.selectTab(Home.acct.profile ? 'rank' : 'play'); };
 function onJoined(r) { store.set({ code: r.code, playerId: r.playerId }); Home.clearReward(); }
-$('#againBtn').onclick = () => emit('play_again');
+$('#againBtn').onclick = () => { $('#againBtn').disabled = true; emit('rematch').then(r => { $('#againBtn').disabled = false; if (r && r.error) toast(r.error); }); };
+$('#toLobbyBtn').onclick = () => emit('play_again');
 $('#closeOverlay').onclick = () => { overlayClosed = true; $('#overlay').classList.add('hidden'); stopConfetti(); };
 $('#identityBtn').onclick = () => {
   showId = !showId;
@@ -141,7 +142,8 @@ socket.on('state', s => {
   if (s.phase !== 'PLAYING' || s.step !== 'MOVE') selected = null;
   if (s.step !== 'BLACK') killSel = null;
   if (prevPhase !== 'GAME_OVER' && s.phase === 'GAME_OVER') { overlayClosed = false; celebrated = false; }
-  if (s.phase === 'ORDER' && prevPhase === 'LOBBY') { showId = false; introPending = true; A.sfx.start(); orderSeen = {}; orderDoneShown = false; orderFinishing = false; clearTimeout(orderHideT); orderHideT = null; A.preloadVoice(voAll()); setTimeout(() => A.say('order', { ttl: 8000 }), 900); notes = {}; saveNotes(); }
+  if (s.phase === 'ORDER' && prevPhase === 'GAME_OVER') { stopConfetti(); Home.clearReward(); overlayClosed = false; prevTurnId = null; seenEventId = s.lastEvent ? s.lastEvent.id : seenEventId; fxQueue.length = 0; }
+  if (s.phase === 'ORDER' && (prevPhase === 'LOBBY' || prevPhase === 'GAME_OVER')) { showId = false; introPending = true; A.sfx.start(); orderSeen = {}; orderDoneShown = false; orderFinishing = false; clearTimeout(orderHideT); orderHideT = null; A.preloadVoice(voAll()); setTimeout(() => A.say('order', { ttl: 8000 }), 900); notes = {}; saveNotes(); }
   if (s.phase === 'ORDER' && prev && prev.phase === 'ORDER' && s.order && prev.order && s.order.round > prev.order.round) A.say('tie', { prio: 2 });
   if (s.phase === 'PLAYING' && prevPhase !== 'PLAYING') {
     showId = false;
@@ -395,7 +397,7 @@ function initBoard() {
     onRollEnd() {
       const b = $('#rollBanner'), d = state && state.die;
       if (d) { b.textContent = DIE_LABEL[d]; b.className = `roll-banner die-${d}`; clearTimeout(b.t); b.t = setTimeout(() => b.classList.add('hidden'), 1700); }
-      if (d === 'hitam') vibrate([30, 40, 30]);
+      if (d === 'hitam') { vibrate([30, 40, 30]); board.panic(); }
       if (d) A.say(d === 'hitam' ? 'black' : `i-${d}`, { prio: d === 'hitam' ? 1 : 0, ttl: 2500 });
       renderGame(); processFx();
     },
@@ -625,8 +627,9 @@ function showReveal(ev, done) {
     line = ev.self ? `Ketahuan sendirian. Ternyata dia adalah` : `${pname(ev.by)} membuka topeng. Ternyata dia adalah`;
     if (isMe) { A.sfx.lose(); vibrate([80, 60, 160]); } else { A.sfx.unmask(); vibrate(60); }
     A.say(['unmask', isMe ? 'you_out' : `c-${c.id}`], { prio: 2, ttl: 8000 });
+    board && board.shake(0.16, 0.6);
   } else if (ev.type === 'killed') {
-    kicker = 'HANYA TAMU BIASA'; title = 'Salah sasaran!'; line = `${pname(ev.by)} membuka topeng. Ternyata hanya`; A.sfx.poof(); A.say(['guest', `c-${c.id}`], { prio: 2, ttl: 8000 });
+    kicker = 'HANYA TAMU BIASA'; title = 'Salah sasaran!'; line = `${pname(ev.by)} membuka topeng. Ternyata hanya`; A.sfx.poof(); A.say(['guest', `c-${c.id}`], { prio: 2, ttl: 8000 }); board && board.shake(0.06, 0.35);
   } else {
     kicker = 'KARTU DIBUKA'; title = `${pname(ev.by)} membuka kartu`; line = 'Tamu ini disuruh pulang dari pesta:'; A.sfx.card(); A.say(['card', `c-${c.id}`], { prio: 2, ttl: 8000 });
   }
@@ -640,11 +643,11 @@ function showReveal(ev, done) {
   front.append(el('p', 'rv-hint', 'Ketuk untuk lanjut'));
   inner.append(back, front); card.append(inner);
   $('#fx').append(card);
-  afterPaint(() => { card.classList.add('show'); setTimeout(() => card.classList.add('flip'), 380); });
+  afterPaint(() => { card.classList.add('show'); setTimeout(() => card.classList.add('flip'), ev.type === 'eliminated' && !document.body.classList.contains('reduce-motion') ? 900 : 380); });
   let closed = false;
   const close = () => { if (closed) return; closed = true; card.classList.add('out'); setTimeout(() => { card.remove(); done(); }, 280); };
   card.addEventListener('click', close);
-  afterPaint(() => setTimeout(close, ev.type === 'eliminated' ? 4200 : 3000));
+  afterPaint(() => setTimeout(close, ev.type === 'eliminated' ? 4700 : 3000));
 }
 
 // ---------- layar akhir + konfeti ----------
@@ -672,7 +675,9 @@ function renderOverlay() {
   }));
   renderRecap(s);
   Home.renderReward(s, me.id);
-  $('#againBtn').classList.toggle('hidden', me.id !== s.hostId);
+  const host = me.id === s.hostId;
+  $('#againBtn').classList.toggle('hidden', !host); $('#toLobbyBtn').classList.toggle('hidden', !host);
+  $('#waitHost').classList.toggle('hidden', host); $('#waitHost').textContent = `Menunggu ${pname(s.hostId)} memulai pesta berikutnya…`;
   if (!celebrated) { celebrated = true; A.sfx.win(); A.say(w && w.id === me.id ? ['gameover', 'win'] : ['gameover'], { prio: 2, ttl: 12000 }); if (w && w.id === me.id) vibrate([60, 40, 60, 40, 200]); startConfetti(); }
 }
 // ---------- rekap: gelar & momen pesta ----------

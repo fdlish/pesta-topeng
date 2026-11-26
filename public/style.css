@@ -796,3 +796,6 @@ body.reduce-motion .react-bubble { animation: rbFade 2.6s linear both; }
 .rw-note { margin: 10px 0 0; font-size: .88rem; color: var(--muted); line-height: 1.45; text-align: left; }
 .bot-tag { border: 1px dashed rgba(201,161,74,.45); background: transparent; }
 .aw-title { font-size: .86rem; }
+
+.to-lobby { display: block; margin: 8px auto 12px; font-size: .86rem; }
+.wait-host { margin: 12px 0; font-size: .9rem; }

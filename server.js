@@ -388,6 +388,16 @@ io.on('connection', socket => {
   socket.on('move', action((room, p, { charId, to, spot }) => G.move(room.game, p.id, charId, to, spot)));
   socket.on('kill', action((room, p, { targetId }) => G.kill(room.game, p.id, targetId)));
   socket.on('draw', action((room, p) => G.draw(room.game, p.id)));
+  socket.on('rematch', action((room, p) => { // pesta lagi dengan pemain yang sama, langsung lempar dadu urutan
+    if (p.id !== room.hostId) throw new Error('Hanya host');
+    if (room.game.phase !== 'GAME_OVER') throw new Error('Game belum selesai');
+    const stay = room.game.players.filter(x => x.connected || x.bot);
+    if (stay.length < G.MIN_PLAYERS) throw new Error(`Pemain tinggal ${stay.length}. Kembali ke lobby untuk menambah pemain atau bot.`);
+    room.game.players = stay;
+    G.resetToLobby(room.game);
+    room.awarded = false; room.botOrder = {}; room.turnKey = null;
+    G.startGame(room.game);
+  }));
   socket.on('play_again', action((room, p) => {
     if (p.id !== room.hostId) throw new Error('Hanya host');
     if (room.game.phase !== 'GAME_OVER') throw new Error('Game belum selesai');
