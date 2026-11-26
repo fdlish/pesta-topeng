@@ -137,6 +137,7 @@ socket.on('state', s => {
   const prev = state;
   const prevPhase = prev && prev.phase;
   state = s; clockOffset = s.serverNow - Date.now();
+  if (s.tutorial && (!prev || prev.code !== s.code)) coachSeen = new Set();
   if (!prev || prev.code !== s.code) loadNotes();
   me = s.players.find(p => p.id === store.get().playerId) || null;
   if (s.phase !== 'PLAYING' || s.step !== 'MOVE') selected = null;
@@ -260,6 +261,7 @@ function render() {
     if (board) { board.myId = me.id; board.update(state, {}); if (introPending) { introPending = false; board.intro(); } }
     renderGame();
     renderOrder();
+    renderCoach();
   }
   const over = state.phase === 'GAME_OVER';
   const busy = board && (board.rolling || fxBusy);
@@ -471,6 +473,30 @@ function openNote(pid) {
 function closeNote() { $('#noteSheet').classList.add('hidden'); }
 $('#noteClose').onclick = closeNote;
 $('#noteSheet').addEventListener('click', e => { if (e.target.id === 'noteSheet') closeNote(); });
+
+// ---------- panduan ronde latihan ----------
+// Muncul satu per satu sesuai situasi, masing-masing sekali per ronde latihan.
+const COACH = [
+  ['order', s => s.phase === 'ORDER', 'Semua pemain melempar 2 dadu. Total tertinggi jalan duluan. Ketuk <b>Lempar 2 Dadu</b>.'],
+  ['identity', s => s.phase === 'PLAYING' && !showId, 'Kamu diam-diam adalah salah satu dari 20 tamu di papan. Ketuk <b>kartu topeng</b> di bawah untuk melihat siapa kamu. Rahasiakan!'],
+  ['watch', s => s.phase === 'PLAYING' && s.turnPlayerId !== me.id, 'Giliran lawan. Perhatikan tamu mana yang mereka geser. Ketuk <b>nama lawan</b> di atas untuk mencatat tebakanmu.'],
+  ['roll', s => s.phase === 'PLAYING' && s.turnPlayerId === me.id && s.step === 'ROLL', 'Giliranmu! Lempar dadu. Dadu menunjuk <b>pulau</b> (5 sisi) atau <b>hitam</b> (2 sisi).'],
+  ['move', s => s.phase === 'PLAYING' && s.turnPlayerId === me.id && s.step === 'MOVE', 'Geser <b>satu tamu mana saja</b> masuk ke / keluar dari pulau di dadu. Jaga tamumu agar tidak sendirian, tapi jangan terlalu sering menggesernya: lawan memperhatikan.'],
+  ['black', s => s.phase === 'PLAYING' && s.turnPlayerId === me.id && s.step === 'BLACK', 'Dadu hitam! Ketuk tamu yang <b>sepulau dengan tamumu</b> untuk membuka topengnya, atau <b>buka kartu</b> untuk memulangkan tamu yang pasti tak bersalah.'],
+  ['alone', s => s.phase === 'PLAYING' && priv.charId && s.figures[priv.charId] && Object.values(s.figures).filter(r => r === s.figures[priv.charId]).length === 1, 'Awas, tamumu <b>sendirian</b> di pulaunya! Kalau kamu dapat dadu hitam sekarang, topengmu langsung terbuka.'],
+];
+let coachSeen = new Set(), coachCur = null;
+function renderCoach() {
+  const box = $('#coach'), s = state;
+  if (!s || !s.tutorial || !['ORDER', 'PLAYING'].includes(s.phase) || !me || !me.alive) { box.classList.add('hidden'); coachCur = null; return; }
+  if (coachCur && COACH.find(c => c[0] === coachCur)[1](s)) return; // langkah saat ini masih relevan
+  const next = COACH.find(([k, when]) => !coachSeen.has(k) && when(s));
+  if (!next) { box.classList.add('hidden'); coachCur = null; return; }
+  coachCur = next[0]; coachSeen.add(next[0]);
+  $('#coachText').innerHTML = next[2];
+  box.classList.remove('hidden'); box.classList.remove('pop'); void box.offsetWidth; box.classList.add('pop');
+}
+$('#coachOk').onclick = () => { $('#coach').classList.add('hidden'); coachCur = null; renderCoach(); };
 
 // ---------- reaksi cepat ----------
 const REACT = { curiga: ['🤨', 'Curiga…'], waduh: ['😱', 'Waduh!'], sstt: ['🤫', 'Sstt…'], wkwk: ['😂', 'Wkwk'], bukan: ['🙅', 'Bukan aku!'], mantap: ['👏', 'Mantap'] };

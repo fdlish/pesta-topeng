@@ -134,7 +134,7 @@ function sync(room) {
   const view = G.publicView(g);
   const extra = Object.fromEntries(g.players.map(p => [p.id, { publicId: p.publicId || null, avatarUrl: p.avatarUrl || null, tier: p.uid ? p.tier : null, guest: !p.uid }]));
   view.players = view.players.map(p => ({ ...p, ...extra[p.id] }));
-  const pub = { ...view, code: room.code, hostId: room.hostId, visibility: room.visibility, turnEndsAt: room.turnEndsAt, serverNow: Date.now() };
+  const pub = { ...view, code: room.code, hostId: room.hostId, visibility: room.visibility, tutorial: !!room.tutorial, turnEndsAt: room.turnEndsAt, serverNow: Date.now() };
   io.to(room.code).emit('state', pub);
   if (room.visibility === 'public') broadcastRooms();
   for (const p of g.players) if (p.connected && p.socketId) io.to(p.socketId).emit('private', G.privateView(g, p));
@@ -146,7 +146,7 @@ function scheduleTurn(room) {
   const cp = G.currentPlayer(room.game);
   if (!cp) return;
   // bot "berpikir" sebentar; setelah dadu dilempar tunggu animasi dadu/terbang selesai di layar pemain
-  const ms = cp.bot ? (room.game.step === 'ROLL' ? rnd(1300, 2200) : rnd(2600, 3800)) : cp.connected ? TURN_MS : OFFLINE_TURN_MS;
+  const ms = cp.bot ? (room.game.step === 'ROLL' ? rnd(1300, 2200) : rnd(2600, 3800)) * (room.tutorial ? 1.3 : 1) : cp.connected ? TURN_MS * (room.tutorial ? 2 : 1) : OFFLINE_TURN_MS;
   room.turnEndsAt = Date.now() + ms;
   room.turnTimer = setTimeout(() => {
     try { cp.bot ? G.botAct(room.game) : G.autoAct(room.game); } catch (e) { console.error('autoAct', e.message); try { G.autoAct(room.game); } catch {} }
@@ -316,6 +316,22 @@ io.on('connection', socket => {
     reply(cb, { code, playerId: p.id });
     afterChange(room);
     broadcastRooms();
+  });
+
+  // Ronde latihan: room privat + 2 bot, langsung mulai, dengan panduan di layar
+  socket.on('create_practice', ({ name } = {}, cb) => {
+    name = displayName(name) || 'Tamu Misterius';
+    const code = makeCode();
+    const room = { code, game: G.createGame(), hostId: null, visibility: 'private', tutorial: true, createdAt: Date.now() };
+    const p = newPlayer(name);
+    room.game.players.push(p); room.hostId = p.id;
+    const names = G.BOT_NAMES.slice().sort(() => Math.random() - 0.5);
+    for (const style of ['waspada', 'nekat']) room.game.players.push({ id: nanoid(10), name: names.pop(), bot: true, botStyle: style, connected: true, socketId: null, alive: true, cards: [], charId: null });
+    rooms.set(code, room);
+    attach(room, p);
+    G.startGame(room.game);
+    reply(cb, { code, playerId: p.id });
+    afterChange(room);
   });
 
   socket.on('set_visibility', ({ visibility } = {}, cb) => {

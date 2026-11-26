@@ -73,6 +73,7 @@
         </div>
         <p id="visHelp" class="help">Tampil di daftar room publik.</p>
         <button id="createBtn" class="btn primary">Buat Room Baru</button>
+        <button id="practiceBtn" class="btn practice-btn" type="button">Latihan lawan bot <small>tanpa akun · ±10 menit</small></button>
         <div class="divider"><span>punya kode?</span></div>
         <div class="row">
           <label class="sr-only" for="codeInput">Kode room</label>
@@ -180,6 +181,7 @@
     <div id="reactLayer" class="react-layer" aria-live="polite"></div>
     <div id="board3d" class="board3d">
       <div id="rollBanner" class="roll-banner hidden"></div>
+      <div id="coach" class="coach hidden" role="status" aria-live="polite"><p id="coachText"></p><button id="coachOk" class="btn small" type="button">Mengerti</button></div>
       <div class="react-dock">
         <div id="reactTray" class="react-tray hidden" role="menu" aria-label="Kirim reaksi"></div>
         <button id="reactBtn" class="react-btn" type="button" aria-label="Kirim reaksi" aria-expanded="false" title="Reaksi"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01M15 9h.01"/></svg></button>

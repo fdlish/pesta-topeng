@@ -60,6 +60,7 @@ export function initHome(config, deps) {
   setupNameDialog();
   renderRules();
   $('#createBtn').onclick = createRoom;
+  $('#practiceBtn').onclick = startPractice;
   $('#joinBtn').onclick = () => joinRoom($('#codeInput').value.trim().toUpperCase());
   $('#codeInput').addEventListener('input', e => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z]/g, ''); $('#homeErr').textContent = ''; });
   $('#codeInput').addEventListener('keydown', e => { if (e.key === 'Enter') $('#joinBtn').click(); });
@@ -187,6 +188,15 @@ async function createRoom() {
   const r = await D.emit('create_room', { name: id.name, visibility });
   b.disabled = false;
   if (r.code) D.onJoined(r);
+}
+// Latihan lawan bot: tidak perlu akun/nama, langsung masuk pesta dengan panduan
+async function startPractice() {
+  const b = $('#practiceBtn'); b.disabled = true;
+  let name = '';
+  try { name = acct.profile ? acct.profile.username : ($('#nameInput').value.trim() || JSON.parse(localStorage.getItem('pestaTopeng') || '{}').name || ''); } catch {}
+  const r = await D.emit('create_practice', { name: name || 'Tamu Misterius' });
+  b.disabled = false;
+  if (r.code) D.onJoined(r); else if (r.error) $('#homeErr').textContent = r.error;
 }
 export async function joinRoom(code) {
   if (!/^[A-Z]{4}$/.test(code)) { $('#homeErr').textContent = 'Kode room terdiri dari 4 huruf.'; D.sfx.error(); return $('#codeInput').focus(); }
