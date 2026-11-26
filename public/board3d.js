@@ -20,7 +20,7 @@ let GAP, CW, CD, AD, CX, CZ, SEA_W, SEA_D, LAYOUT, BRIDGES, PROPS, DIE_REST;
 function initLayout(L) {
   ({ GAP, CW, CD, AD, CX, CZ, SEA_W, SEA_D, BRIDGES, PROPS } = L);
   LAYOUT = L.ROOMS;
-  DIE_REST = new THREE.Vector3(3.6, 0.45, SEA_D / 2 + 1.35);
+  DIE_REST = new THREE.Vector3(3.6, 0.57, SEA_D / 2 + 1.45);
 }
 
 const SEA_Y = 0.02, FLOOR_Y = 0.32, FIG_S = 1.42;
@@ -85,8 +85,8 @@ export class Board3D {
     container.append(r.domElement);
 
     const s = this.scene = new THREE.Scene();
-    s.background = new THREE.Color('#07090c');
-    s.fog = new THREE.Fog('#07090c', 26, 48);
+    s.background = new THREE.Color('#0d1229');
+    s.fog = new THREE.Fog('#0d1229', 26, 48);
     const pmrem = new THREE.PMREMGenerator(r);
     s.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
     s.environmentIntensity = 0.35;
@@ -121,11 +121,21 @@ export class Board3D {
 
   // ================= scene =================
   buildTable() {
+    // taplak batik nila bermotif kawung (nada-ke-nada, tidak bersaing dengan papan)
     const felt = canvasTex(512, 512, (g, w, h) => {
-      g.fillStyle = '#123524'; g.fillRect(0, 0, w, h);
-      speckle(g, w, h, 26000, 'rgba(255,255,255,.035)', 'rgba(0,0,0,.08)');
+      g.fillStyle = '#18224a'; g.fillRect(0, 0, w, h);
+      speckle(g, w, h, 22000, 'rgba(255,255,255,.03)', 'rgba(0,0,0,.08)');
+      const step = w / 4;
+      g.fillStyle = 'rgba(120,150,220,.09)'; g.strokeStyle = 'rgba(242,193,78,.06)'; g.lineWidth = 2;
+      for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) {
+        const cx = (x + (y % 2) * 0.5) * step, cy = (y + 0.5) * step;
+        for (const ox of [0, w]) for (let k = 0; k < 4; k++) {
+          const a = k * Math.PI / 2 + Math.PI / 4;
+          g.beginPath(); g.ellipse(cx - ox + Math.cos(a) * step * 0.24, cy + Math.sin(a) * step * 0.24, step * 0.2, step * 0.12, a, 0, Math.PI * 2); g.fill(); g.stroke();
+        }
+      }
     });
-    felt.wrapS = felt.wrapT = THREE.RepeatWrapping; felt.repeat.set(10, 10);
+    felt.wrapS = felt.wrapT = THREE.RepeatWrapping; felt.repeat.set(7, 7);
     const table = new THREE.Mesh(new THREE.CircleGeometry(19, 96), new THREE.MeshStandardMaterial({ map: felt, roughness: 1 }));
     table.rotation.x = -Math.PI / 2; table.position.y = -0.55; table.receiveShadow = true;
     const edge = new THREE.Mesh(new THREE.TorusGeometry(19, 0.45, 16, 120), this.shared.walnut);
@@ -411,37 +421,84 @@ export class Board3D {
   // foto profil: dipusatkan di portraits.js (cache bersama untuk semua layar)
   portrait(id) { return getPortrait(id); }
 
-  // Dadu prisma segi lima: 5 sisi panjang = 5 pulau, 2 ujung segi lima = hitam.
+  // Dadu prisma segi lima bertepi membulat (seperti dadu mainan enamel):
+  // 5 sisi panjang = warna pulau (sama persis dengan papan), 2 ujung = hitam bertopeng kunyit.
+  // Tanpa tulisan kecil di dadu: warna sudah jadi kodenya, nama pulau tampil besar di banner.
   buildDie() {
-    const R = 0.59, H = 0.95; // apotema (R·cos36°) ≈ H/2 → tinggi diam sama, rebah maupun berdiri
-    const P = 256, PH = 360;  // ukuran satu panel sisi di atlas
-    const sideTex = canvasTex(P * 5, PH, (g) => {
-      DIE_SIDES.forEach((f, i) => {
-        g.save(); g.translate(i * P, 0);
-        g.fillStyle = '#efe5d0'; g.fillRect(0, 0, P, PH);
-        g.fillStyle = FELT[f]; g.beginPath(); g.roundRect(20, 20, P - 40, PH - 40, 26); g.fill();
-        g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = 4;
-        g.beginPath(); g.roundRect(32, 32, P - 64, PH - 64, 18); g.stroke();
-        // teks memanjang searah sisi agar besar & terbaca saat dadu rebah
-        const txt = this.meta.roomLabel[f].toUpperCase();
-        g.translate(P / 2, PH / 2); g.rotate(-Math.PI / 2);
-        g.fillStyle = INK_ON[f] || CREAM; g.textAlign = 'center'; g.textBaseline = 'middle';
-        let size = 62; g.font = `800 ${size}px ${SANS}`;
-        while (g.measureText(txt).width > PH - 90 && size > 24) { size -= 2; g.font = `800 ${size}px ${SANS}`; }
-        g.fillText(txt, 0, 0);
-        g.restore();
-      });
+    const S = 1.2;                          // sedikit lebih besar dari sebelumnya agar terbaca di HP
+    const R = 0.59 * S, H = 0.95 * S;       // jari-jari luar & tinggi (apotema ≈ H/2: tinggi diam sama di semua sisi)
+    const bevel = 0.075 * S, round = 0.11 * S;
+    const Ri = R - bevel / Math.cos(Math.PI / 5);   // bentuk dalam: bevel menambah ke luar
+    const corners = [0, 1, 2, 3, 4].map(k => { const t = k * Math.PI * 2 / 5; return new THREE.Vector2(Ri * Math.sin(t), -Ri * Math.cos(t)); });
+    const shape = new THREE.Shape();
+    corners.forEach((c, k) => { // sudut segi lima dibulatkan
+      const prev = corners[(k + 4) % 5], next = corners[(k + 1) % 5];
+      const a = c.clone().lerp(prev, round / c.distanceTo(prev)), b = c.clone().lerp(next, round / c.distanceTo(next));
+      if (k === 0) shape.moveTo(a.x, a.y); else shape.lineTo(a.x, a.y);
+      shape.quadraticCurveTo(c.x, c.y, b.x, b.y);
     });
-    const capTex = canvasTex(256, 256, (g, w, h) => {
-      g.fillStyle = '#efe5d0'; g.fillRect(0, 0, w, h);
-      g.fillStyle = '#15171c'; g.beginPath(); g.arc(w / 2, h / 2, w / 2 - 6, 0, Math.PI * 2); g.fill();
-      g.strokeStyle = BRASS; g.lineWidth = 5; g.beginPath(); g.arc(w / 2, h / 2, w / 2 - 22, 0, Math.PI * 2); g.stroke();
-      drawMask(g, w / 2, h / 2, 64, BRASS);
-    });
-    const phys = map => new THREE.MeshPhysicalMaterial({ map, roughness: 0.35, clearcoat: 0.6, clearcoatRoughness: 0.3 });
-    const capMat = phys(capTex);
-    this.die = new THREE.Mesh(new THREE.CylinderGeometry(R, R, H, 5, 1, false), [phys(sideTex), capMat, capMat]);
+    shape.closePath();
+    const depth = H - bevel * 2;
+    let geo = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: true, bevelThickness: bevel, bevelSize: bevel, bevelSegments: 4, curveSegments: 6 });
+    geo.translate(0, 0, -depth / 2); geo.rotateX(-Math.PI / 2);
+    geo = geo.index ? geo.toNonIndexed() : geo;
+    geo.computeVertexNormals();
+    // warna per segitiga dari arah normalnya: tutup = hitam, tepi bulat = krem, panel sisi = warna pulau
+    const pos = geo.attributes.position, colors = new Float32Array(pos.count * 3);
+    const col = { cap: new THREE.Color('#17181d'), trim: new THREE.Color('#efe5d0') };
+    DIE_SIDES.forEach(f => { col[f] = new THREE.Color(FELT[f]); });
+    const A = new THREE.Vector3(), B = new THREE.Vector3(), C = new THREE.Vector3(), n = new THREE.Vector3();
+    const sector = Math.PI * 2 / 5;
+    for (let i = 0; i < pos.count; i += 3) {
+      A.fromBufferAttribute(pos, i); B.fromBufferAttribute(pos, i + 1); C.fromBufferAttribute(pos, i + 2);
+      n.subVectors(C, B).cross(A.clone().sub(B)).normalize();
+      let c;
+      if (Math.abs(n.y) > 0.9) c = col.cap;
+      else if (Math.abs(n.y) > 0.2) c = col.trim;
+      else {
+        const ang = (Math.atan2(n.x, n.z) + Math.PI * 2) % (Math.PI * 2);
+        const idx = Math.floor(ang / sector) % 5, dev = Math.abs(ang - (idx + 0.5) * sector);
+        c = dev > 0.1 ? col.trim : col[DIE_SIDES[idx]];
+      }
+      for (let k = 0; k < 3; k++) colors.set([c.r, c.g, c.b], (i + k) * 3);
+    }
+    geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    const mat = new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.3, clearcoat: 0.9, clearcoatRoughness: 0.18 });
+    this.die = new THREE.Mesh(geo, mat);
     this.die.castShadow = true;
+
+    // motif kawung halus + garis tepi di tiap panel sisi (tempelan tipis, ikut berputar dengan dadu)
+    const apo = R * Math.cos(Math.PI / 5);
+    const faceW = 2 * R * Math.sin(Math.PI / 5) - round * 1.6, faceH = H - bevel * 2.6;
+    const motif = ink => canvasTex(160, 256, (g, w, h) => { // bingkai dalam + satu ketupat anyaman di tengah
+      g.strokeStyle = ink; g.lineWidth = 5; g.beginPath(); g.roundRect(12, 12, w - 24, h - 24, 16); g.stroke();
+      g.save(); g.translate(w / 2, h / 2); g.rotate(Math.PI / 4);
+      const k = 26; g.fillStyle = ink; g.fillRect(-k, -k, k * 2, k * 2);
+      g.globalCompositeOperation = 'destination-out'; g.lineWidth = 4;
+      for (const t of [-k / 3, k / 3]) { g.beginPath(); g.moveTo(t, -k); g.lineTo(t, k); g.moveTo(-k, t); g.lineTo(k, t); g.stroke(); }
+      g.restore();
+    });
+    const light = new THREE.MeshStandardMaterial({ map: motif('rgba(255,255,255,.55)'), transparent: true, roughness: 0.4, depthWrite: false });
+    const dark = new THREE.MeshStandardMaterial({ map: motif('rgba(31,42,82,.5)'), transparent: true, roughness: 0.4, depthWrite: false });
+    const plane = new THREE.PlaneGeometry(faceW, faceH);
+    DIE_SIDES.forEach((f, i) => {
+      const a = (i + 0.5) * sector, m = new THREE.Mesh(plane, f === 'papua' || f === 'sulawesi' ? dark : light);
+      m.position.set(Math.sin(a) * (apo + 0.003), 0, Math.cos(a) * (apo + 0.003));
+      m.rotation.y = a; // bidang menghadap ke luar dari sisi
+      this.die.add(m);
+    });
+    // ujung hitam: topeng kunyit
+    const capTex = canvasTex(256, 256, (g, w, h) => { // topeng dengan bentuk yang sama seperti logo
+      const mask = new Path2D('M2 7C10 1 22 2 32 10C42 2 54 1 62 7C64 22 56 34 44 34C38 34 35 27 32 27C29 27 26 34 20 34C8 34 0 22 2 7ZM12 17C14 13 21 13 25 17C21 21 15 21 12 17ZM39 17C43 13 50 13 52 17C49 21 43 21 39 17Z');
+      g.save(); g.translate(w / 2 - 64 * 3.1 / 2, h / 2 - 40 * 3.1 / 2 + 6); g.scale(3.1, 3.1); g.fillStyle = '#F2C14E'; g.fill(mask, 'evenodd'); g.restore();
+    });
+    const capMat = new THREE.MeshStandardMaterial({ map: capTex, transparent: true, roughness: 0.35, depthWrite: false });
+    const capPlane = new THREE.PlaneGeometry(apo * 1.55, apo * 1.55);
+    for (const sgn of [1, -1]) {
+      const m = new THREE.Mesh(capPlane, capMat);
+      m.position.y = sgn * (H / 2 + 0.003); m.rotation.x = -sgn * Math.PI / 2;
+      this.die.add(m);
+    }
     this.die.position.copy(DIE_REST);
     this.die.quaternion.copy(this.faceUpQuat('sulawesi', 0.4));
     this.scene.add(this.die);
@@ -453,7 +510,8 @@ export class Board3D {
     if (face === 'hitam') {
       const n = new THREE.Vector3(0, Math.random() < 0.5 ? 1 : -1, 0);
       const q = new THREE.Quaternion().setFromUnitVectors(n, up);
-      return new THREE.Quaternion().setFromAxisAngle(up, yaw ?? Math.random() * Math.PI * 2).multiply(q);
+      // topeng di ujung hitam selalu mendatar menghadap kamera (kalau miring 90° terbaca seperti angka 8)
+      return new THREE.Quaternion().setFromAxisAngle(up, yaw ?? (Math.random() - 0.5) * 0.4).multiply(q);
     }
     const a = (DIE_SIDES.indexOf(face) + 0.5) * (Math.PI * 2 / 5);
     const n = new THREE.Vector3(Math.sin(a), 0, Math.cos(a));

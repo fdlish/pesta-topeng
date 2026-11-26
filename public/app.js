@@ -570,9 +570,9 @@ function renderGame() {
   idBtn.classList.toggle('open', !!open);
   const av = $('#idAvatar');
   if (open) { const src = getPortrait(myChar.id); if (av.getAttribute('src') !== src) av.src = src; av.alt = `Foto ${myChar.name}`; }
-  $('#idName').textContent = open ? myChar.name.toUpperCase() + (me.alive ? '' : ' · TERSINGKIR') : '';
+  $('#idName').textContent = open ? myChar.name + (me.alive ? '' : ', tersingkir') : '';
   $('#identityText').textContent = !myChar ? '…' : open ? myChar.bio : 'Ketuk untuk lihat identitasmu';
-  $('#idHint').textContent = !myChar ? '' : !me.alive ? 'Topengmu sudah terbuka.' : showId ? 'Karaktermu disorot cahaya emas "INI KAMU" di papan · ketuk untuk sembunyikan' : 'Jaga layarmu dari intipan!';
+  $('#idHint').textContent = !myChar ? '' : !me.alive ? 'Topengmu sudah terbuka.' : showId ? 'Bidakmu ditandai "INI KAMU" di papan. Ketuk lagi untuk menyembunyikan.' : 'Jaga layarmu dari intipan!';
 
   const moves = s.legalMoves || [];
   const ui = {
