@@ -24,8 +24,7 @@ function initLayout(L) {
 }
 
 const SEA_Y = 0.02, FLOOR_Y = 0.32, FIG_S = 1.42;
-const DIE_FACE_INDEX = { asia: 0, afrika: 1, eropa: 2, amerika: 3, antartika: 4, hitam: 5 }; // +x,-x,+y,-y,+z,-z
-const FACE_NORMALS = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]].map(v => new THREE.Vector3(...v));
+const DIE_SIDES = ['asia', 'afrika', 'eropa', 'amerika', 'antartika']; // urutan panel sisi prisma (searah sudut θ)
 // Animasi selalu aktif di semua perangkat. Sebelumnya mengikuti setelan sistem "kurangi gerakan",
 // yang sering menyala di laptop/iPhone sehingga animasi tidak jalan. Sekarang dimatikan hanya lewat
 // tombol "Kurangi animasi" di dalam game.
@@ -383,34 +382,58 @@ export class Board3D {
   // foto profil: dipusatkan di portraits.js (cache bersama untuk semua layar)
   portrait(id) { return getPortrait(id); }
 
+  // Dadu prisma segi lima: 5 sisi panjang = 5 benua, 2 ujung segi lima = hitam.
   buildDie() {
-    const faces = ['asia', 'afrika', 'eropa', 'amerika', 'antartika', 'hitam'];
-    const mat = f => new THREE.MeshPhysicalMaterial({
-      roughness: 0.35, clearcoat: 0.6, clearcoatRoughness: 0.3,
-      map: canvasTex(256, 256, (g, w, h) => {
-        g.fillStyle = '#efe5d0'; g.fillRect(0, 0, w, h);
-        const col = f === 'hitam' ? '#15171c' : FELT[f];
-        g.fillStyle = col; g.beginPath(); g.roundRect(26, 26, w - 52, h - 52, 30); g.fill();
-        g.strokeStyle = f === 'hitam' ? BRASS : 'rgba(255,255,255,.35)'; g.lineWidth = 4;
-        g.beginPath(); g.roundRect(38, 38, w - 76, h - 76, 22); g.stroke();
-        if (f === 'hitam') { drawMask(g, w / 2, h / 2, 62, BRASS); return; }
+    const R = 0.59, H = 0.95; // apotema (R·cos36°) ≈ H/2 → tinggi diam sama, rebah maupun berdiri
+    const P = 256, PH = 360;  // ukuran satu panel sisi di atlas
+    const sideTex = canvasTex(P * 5, PH, (g) => {
+      DIE_SIDES.forEach((f, i) => {
+        g.save(); g.translate(i * P, 0);
+        g.fillStyle = '#efe5d0'; g.fillRect(0, 0, P, PH);
+        g.fillStyle = FELT[f]; g.beginPath(); g.roundRect(20, 20, P - 40, PH - 40, 26); g.fill();
+        g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = 4;
+        g.beginPath(); g.roundRect(32, 32, P - 64, PH - 64, 18); g.stroke();
+        // teks memanjang searah sisi agar besar & terbaca saat dadu rebah
         const txt = this.meta.roomLabel[f].toUpperCase();
+        g.translate(P / 2, PH / 2); g.rotate(-Math.PI / 2);
         g.fillStyle = INK_ON[f] || CREAM; g.textAlign = 'center'; g.textBaseline = 'middle';
-        let size = 40; g.font = `700 ${size}px ${SERIF}`;
-        while (g.measureText(txt).width > w - 96 && size > 18) { size -= 2; g.font = `700 ${size}px ${SERIF}`; }
-        g.fillText(txt, w / 2, h / 2);
-      }),
+        let size = 62; g.font = `700 ${size}px ${SERIF}`;
+        while (g.measureText(txt).width > PH - 90 && size > 24) { size -= 2; g.font = `700 ${size}px ${SERIF}`; }
+        g.fillText(txt, 0, 0);
+        g.restore();
+      });
     });
-    const order = Object.entries(DIE_FACE_INDEX).sort((a, b) => a[1] - b[1]).map(([f]) => mat(f));
-    this.die = new THREE.Mesh(new RoundedBoxGeometry(0.95, 0.95, 0.95, 5, 0.16), order);
+    const capTex = canvasTex(256, 256, (g, w, h) => {
+      g.fillStyle = '#efe5d0'; g.fillRect(0, 0, w, h);
+      g.fillStyle = '#15171c'; g.beginPath(); g.arc(w / 2, h / 2, w / 2 - 6, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = BRASS; g.lineWidth = 5; g.beginPath(); g.arc(w / 2, h / 2, w / 2 - 22, 0, Math.PI * 2); g.stroke();
+      drawMask(g, w / 2, h / 2, 64, BRASS);
+    });
+    const phys = map => new THREE.MeshPhysicalMaterial({ map, roughness: 0.35, clearcoat: 0.6, clearcoatRoughness: 0.3 });
+    const capMat = phys(capTex);
+    this.die = new THREE.Mesh(new THREE.CylinderGeometry(R, R, H, 5, 1, false), [phys(sideTex), capMat, capMat]);
     this.die.castShadow = true;
     this.die.position.copy(DIE_REST);
     this.die.quaternion.copy(this.faceUpQuat('afrika', 0.4));
     this.scene.add(this.die);
   }
-  faceUpQuat(face, yaw) {
-    const q = new THREE.Quaternion().setFromUnitVectors(FACE_NORMALS[DIE_FACE_INDEX[face]], new THREE.Vector3(0, 1, 0));
-    return new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw).multiply(q);
+  // Putar dadu agar sisi `face` menghadap ke atas. Untuk sisi benua, yaw dihitung supaya
+  // tulisan menghadap kamera (terbaca kiri→kanan, tidak terbalik), plus sedikit acak agar alami.
+  faceUpQuat(face, yaw = null) {
+    const up = new THREE.Vector3(0, 1, 0);
+    if (face === 'hitam') {
+      const n = new THREE.Vector3(0, Math.random() < 0.5 ? 1 : -1, 0);
+      const q = new THREE.Quaternion().setFromUnitVectors(n, up);
+      return new THREE.Quaternion().setFromAxisAngle(up, yaw ?? Math.random() * Math.PI * 2).multiply(q);
+    }
+    const a = (DIE_SIDES.indexOf(face) + 0.5) * (Math.PI * 2 / 5);
+    const n = new THREE.Vector3(Math.sin(a), 0, Math.cos(a));
+    const q = new THREE.Quaternion().setFromUnitVectors(n, up);
+    if (yaw == null) {
+      const textUp = new THREE.Vector3(-Math.cos(a), 0, Math.sin(a)).applyQuaternion(q); // arah "atas" huruf
+      yaw = Math.PI - Math.atan2(textUp.x, textUp.z) + (Math.random() - 0.5) * 0.5;
+    }
+    return new THREE.Quaternion().setFromAxisAngle(up, yaw).multiply(q);
   }
 
   buildFigures() {
@@ -618,7 +641,7 @@ export class Board3D {
     this.ui = ui; this.dirty = true;
     if (this.lastRollId === null) {
       this.lastRollId = state.rollId; this.lastEventId = state.lastEvent && state.lastEvent.id;
-      if (state.die) this.die.quaternion.copy(this.faceUpQuat(state.die, 0.4));
+      if (state.die) this.die.quaternion.copy(this.faceUpQuat(state.die));
       return this.applyFigures(state, true);
     }
     if (state.rollId !== this.lastRollId && state.die) {
@@ -735,7 +758,7 @@ export class Board3D {
     this.rolling = true; this.h.onRollStart && this.h.onRollStart();
     const startPos = new THREE.Vector3(rand(-4, -1), 4.5, DIE_REST.z + 3);
     const end = DIE_REST.clone().add(new THREE.Vector3(rand(-0.6, 0.6), 0, rand(-0.25, 0.25)));
-    const qEnd = this.faceUpQuat(face, Math.random() * Math.PI * 2);
+    const qEnd = this.faceUpQuat(face);
     const axis = new THREE.Vector3(Math.random() - 0.5, Math.random() * 0.3, Math.random() - 0.5).normalize();
     const spins = Math.PI * 2 * (REDUCED ? 1 : 3 + Math.random() * 1.5);
     let bounced = 0;

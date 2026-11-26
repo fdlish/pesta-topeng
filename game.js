@@ -16,7 +16,8 @@ const ADJ = {
   asia: ['afrika', 'eropa'],
   eropa: ['amerika', 'antartika', 'afrika', 'asia'],
 };
-const DIE = ['asia', 'afrika', 'eropa', 'amerika', 'antartika', 'hitam'];
+// Dadu 7 sisi (prisma segi lima): 5 sisi benua + 2 ujung hitam → hitam 2/7 (±29%), tiap benua 1/7 (±14%)
+const DIE = ['asia', 'afrika', 'eropa', 'amerika', 'antartika', 'hitam', 'hitam'];
 
 const CHARACTERS = [ // 20 tamu = 20 profesi. bio = deskripsi satir (fiksi, untuk hiburan)
   ['koki', 'Koki', '🧑‍🍳', 'Memasak untuk program makan bergizi; porsinya menyusut tiap kali lewat meja rapat.'],

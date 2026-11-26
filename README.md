@@ -20,7 +20,7 @@ Papan: `[Amerika][Antartika] / [Eropa] / [Afrika][Asia]`.
 | Afrika (kiri bawah) | Kuning | sabana, pohon akasia, piramida | Asia, Eropa |
 | Asia (kanan bawah) | Hijau | sawah terasering, rumpun bambu, pagoda | Afrika, Eropa |
 
-Dadu punya 6 sisi: ASIA, AFRIKA, EROPA, AMERIKA, ANTARTIKA (masing-masing dengan warnanya) + HITAM.
+Dadu berbentuk **prisma segi lima dengan 7 sisi**: 5 sisi panjang ASIA, AFRIKA, EROPA, AMERIKA, ANTARTIKA (masing-masing dengan warnanya) + 2 ujung HITAM. Peluangnya: HITAM 2/7 (±29%), tiap benua 1/7 (±14%). Hasil diundi server secara adil, jadi bentuk prisma tidak memengaruhi peluang.
 
 ## Pengalaman bermain (polesan v2)
 - **Musik latar generatif**, bergaya *masquerade lounge*: progresi jazz ii–V–I, bas, sikat drum, dan melodi acak, jadi tidak pernah berulang persis. Tempo dan perkusi naik saat tersisa 2 pemain. Dibuat dengan WebAudio, tanpa file. Musik berhenti saat tab disembunyikan.
@@ -42,7 +42,7 @@ Dadu punya 6 sisi: ASIA, AFRIKA, EROPA, AMERIKA, ANTARTIKA (masing-masing dengan
 - **20 karakter chibi profesi** bergaya vinyl toy: kepala besar, mata besar mengilap, alis, pipi merona, senyum, rambut, dan seragam lengkap (dasi, rompi reflektif, jas, celana kerja). Setiap tamu memegang topeng pesta bertangkai, sesuai tema *Pesta Topeng*.
   Koki, Polisi, Dokter, Pemadam, Petani (caping), Pilot, Astronot, Pelukis, Pesulap, Peternak, Tukang, Kapten Kapal, Detektif, Dalang (blangkon), Profesor, Atlet, DJ, Perawat, Ilmuwan, dan Kurir.
   Modelnya ada di `public/figures3d.js`. Setiap profesi = satu entri `PROFESSIONS` (warna seragam, gaya rambut, topi, atribut). Geometri dan material dipakai bersama agar hemat GPU.
-- Dadu berbahan gading dengan sisi berwarna, dan sisi HITAM bergambar topeng emas.
+- Dadu prisma gading: nama benua ditulis memanjang di tiap sisi agar mudah terbaca, dan kedua ujung HITAM bergambar topeng emas.
 - UI memakai palet tinta, kuningan, dan krem. Ikon berupa SVG (bukan emoji), font self-hosted (tanpa CDN), dan ada tombol **Kurangi animasi** di panel catatan (disimpan di perangkat). Animasi tidak lagi mengikuti setelan sistem, karena setelan itu sering menyala di laptop/iPhone sehingga animasi tidak jalan.
 
 - Dibangun dengan **three.js** (di-serve dari `node_modules`, tanpa CDN dan tanpa game engine).
