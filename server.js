@@ -156,7 +156,8 @@ function scheduleTurn(room) {
 
 // Setiap perubahan state lewat sini: atur ulang timer jika giliran/step berubah, lalu sync.
 const ORDER_MS = Number(process.env.ORDER_MS) || 15000;
-const rnd = (a, b) => a + Math.floor(Math.random() * (b - a));
+const BOT_SPEED = Number(process.env.BOT_SPEED) || 1; // <1 = bot lebih cepat (untuk pengujian)
+const rnd = (a, b) => Math.round((a + Math.floor(Math.random() * (b - a))) * BOT_SPEED);
 function scheduleBotOrder(room) { // bot melempar 2 dadu urutan dengan jeda acak, seperti manusia
   const g = room.game;
   room.botOrder = room.botOrder || {};
@@ -194,7 +195,22 @@ function afterChange(room) {
   const key = g.phase === 'PLAYING' ? `${g.turnIdx}:${g.step}:${g.seq}` : null;
   if (key !== room.turnKey) { room.turnKey = key; key ? scheduleTurn(room) : (clearTimeout(room.turnTimer), room.turnEndsAt = null); }
   sync(room);
+  botReact(room);
   if (g.phase === 'GAME_OVER') awardRoom(room);
+}
+
+// ---- Reaksi cepat (stiker) ----
+const REACTIONS = ['curiga', 'waduh', 'sstt', 'wkwk', 'bukan', 'mantap'];
+function botReact(room) { // bot ikut heboh saat topeng terbongkar
+  const g = room.game, ev = g.lastEvent;
+  if (!ev || room.botReactedEv === ev.id || !['eliminated', 'killed', 'left'].includes(ev.type)) return;
+  room.botReactedEv = ev.id;
+  const pool = ev.type === 'eliminated' ? ['waduh', 'wkwk', 'mantap', 'curiga'] : ev.type === 'killed' ? ['wkwk', 'sstt', 'bukan'] : ['curiga', 'sstt'];
+  for (const b of g.players.filter(p => p.bot)) {
+    if (Math.random() > (ev.victim === b.id ? 0.9 : 0.28)) continue;
+    const k = ev.victim === b.id ? 'waduh' : pool[Math.floor(Math.random() * pool.length)];
+    setTimeout(() => io.to(room.code).emit('reaction', { pid: b.id, k }), rnd(1800, 4200));
+  }
 }
 
 function migrateHost(room) {
@@ -380,6 +396,14 @@ io.on('connection', socket => {
     G.resetToLobby(room.game);
     room.awarded = false;
   }));
+  socket.on('react', ({ k } = {}) => {
+    const { room, p } = ctx();
+    if (!room || !p || !REACTIONS.includes(k) || room.game.phase === 'LOBBY') return;
+    const now = Date.now();
+    if (now - (p.lastReact || 0) < 1200) return; // anti-spam
+    p.lastReact = now;
+    io.to(room.code).emit('reaction', { pid: p.id, k });
+  });
   socket.on('leave', () => {
     const { room, p } = ctx();
     if (!room || !p) return;

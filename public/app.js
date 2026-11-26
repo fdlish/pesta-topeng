@@ -136,11 +136,12 @@ socket.on('state', s => {
   const prev = state;
   const prevPhase = prev && prev.phase;
   state = s; clockOffset = s.serverNow - Date.now();
+  if (!prev || prev.code !== s.code) loadNotes();
   me = s.players.find(p => p.id === store.get().playerId) || null;
   if (s.phase !== 'PLAYING' || s.step !== 'MOVE') selected = null;
   if (s.step !== 'BLACK') killSel = null;
   if (prevPhase !== 'GAME_OVER' && s.phase === 'GAME_OVER') { overlayClosed = false; celebrated = false; }
-  if (s.phase === 'ORDER' && prevPhase === 'LOBBY') { showId = false; introPending = true; A.sfx.start(); orderSeen = {}; orderDoneShown = false; orderFinishing = false; clearTimeout(orderHideT); orderHideT = null; A.preloadVoice(voAll()); setTimeout(() => A.say('order', { ttl: 8000 }), 900); }
+  if (s.phase === 'ORDER' && prevPhase === 'LOBBY') { showId = false; introPending = true; A.sfx.start(); orderSeen = {}; orderDoneShown = false; orderFinishing = false; clearTimeout(orderHideT); orderHideT = null; A.preloadVoice(voAll()); setTimeout(() => A.say('order', { ttl: 8000 }), 900); notes = {}; saveNotes(); }
   if (s.phase === 'ORDER' && prev && prev.phase === 'ORDER' && s.order && prev.order && s.order.round > prev.order.round) A.say('tie', { prio: 2 });
   if (s.phase === 'PLAYING' && prevPhase !== 'PLAYING') {
     showId = false;
@@ -371,7 +372,8 @@ function initBoard() {
         if (killSel === id) { killSel = null; emit('kill', { targetId: id }); } else { killSel = id; A.sfx.pick(); vibrate(20); renderGame(); }
         return;
       }
-      board.peekFigure(id); A.sfx.hover && A.sfx.hover(); // label profesi muncul di atas bidak
+      const guessBy = Object.keys(notes).find(pid => notes[pid] === id && state.players.some(p => p.id === pid && p.alive));
+      board.peekFigure(id, guessBy ? `tebakanmu: ${pname(guessBy)}` : null); A.sfx.hover && A.sfx.hover(); // label profesi muncul di atas bidak
     },
     onDragStart(id) { A.sfx.pick(); vibrate(15); if (selected !== id) { selected = id; renderGame(); } },
     onDrop(id, room, spot) { A.sfx.land(); vibrate(25); emit('move', { charId: id, to: room, spot }); selected = null; renderGame(); },
@@ -442,14 +444,78 @@ try { rmToggle.checked = localStorage.getItem('pt-reduce-motion') === '1'; } cat
 applyRM(rmToggle.checked);
 rmToggle.addEventListener('change', () => { try { localStorage.setItem('pt-reduce-motion', rmToggle.checked ? '1' : '0'); } catch {} applyRM(rmToggle.checked); });
 
-function chip(p) {
-  const c = el('div', 'chip');
+// ---------- catatan tersangka (privat, di perangkat ini) ----------
+let notes = {};
+const notesKey = () => `pt-notes:${state && state.code}`;
+function loadNotes() { try { notes = JSON.parse(sessionStorage.getItem(notesKey()) || '{}') || {}; } catch { notes = {}; } }
+function saveNotes() { try { sessionStorage.setItem(notesKey(), JSON.stringify(notes)); } catch {} }
+function openNote(pid) {
+  const p = state.players.find(x => x.id === pid); if (!p) return;
+  const sheet = $('#noteSheet'), grid = $('#noteGrid');
+  $('#noteTitle').textContent = `Menurutmu, ${p.name} itu siapa?`;
+  const onBoard = Object.keys(state.figures).filter(id => id !== priv.charId);
+  grid.replaceChildren(...META.characters.filter(c => onBoard.includes(c.id)).map(c => {
+    const b = el('button', 'note-opt' + (notes[pid] === c.id ? ' on' : '')); b.type = 'button';
+    const taken = Object.keys(notes).find(x => x !== pid && notes[x] === c.id);
+    const im = el('img'); im.src = getPortrait(c.id); im.alt = ''; b.append(im, el('span', null, c.name));
+    if (taken) b.append(el('small', null, pname(taken)));
+    b.onclick = () => { notes[pid] = notes[pid] === c.id ? undefined : c.id; if (!notes[pid]) delete notes[pid]; if (taken && notes[pid]) delete notes[taken]; saveNotes(); A.sfx.pick && A.sfx.pick(); closeNote(); renderGame(); };
+    return b;
+  }));
+  $('#noteClear').classList.toggle('hidden', !notes[pid]);
+  $('#noteClear').onclick = () => { delete notes[pid]; saveNotes(); closeNote(); renderGame(); };
+  sheet.classList.remove('hidden'); A.sfx.click && A.sfx.click();
+}
+function closeNote() { $('#noteSheet').classList.add('hidden'); }
+$('#noteClose').onclick = closeNote;
+$('#noteSheet').addEventListener('click', e => { if (e.target.id === 'noteSheet') closeNote(); });
+
+// ---------- reaksi cepat ----------
+const REACT = { curiga: ['🤨', 'Curiga…'], waduh: ['😱', 'Waduh!'], sstt: ['🤫', 'Sstt…'], wkwk: ['😂', 'Wkwk'], bukan: ['🙅', 'Bukan aku!'], mantap: ['👏', 'Mantap'] };
+(() => {
+  const tray = $('#reactTray'), btn = $('#reactBtn');
+  for (const [k, [emo, label]] of Object.entries(REACT)) {
+    const b = el('button', 'react-opt'); b.type = 'button'; b.setAttribute('role', 'menuitem');
+    b.append(el('span', 'ro-emo', emo), el('span', 'ro-label', label));
+    b.onclick = () => { socket.emit('react', { k }); closeTray(); };
+    tray.append(b);
+  }
+  const closeTray = () => { tray.classList.add('hidden'); btn.setAttribute('aria-expanded', 'false'); };
+  btn.onclick = e => { e.stopPropagation(); const open = tray.classList.toggle('hidden') === false; btn.setAttribute('aria-expanded', String(open)); A.sfx.click && A.sfx.click(); };
+  document.addEventListener('pointerdown', e => { if (!tray.contains(e.target) && e.target !== btn && !btn.contains(e.target)) closeTray(); });
+})();
+socket.on('reaction', ({ pid, k }) => {
+  if (!state || !REACT[k]) return;
+  const p = state.players.find(x => x.id === pid); if (!p) return;
+  const layer = $('#reactLayer'), chipEl = document.querySelector(`#playerStrip .chip[data-id="${pid}"]`);
+  const b = el('div', 'react-bubble' + (pid === me?.id ? ' mine' : ''));
+  b.append(el('span', 'rb-emo', REACT[k][0]), el('span', 'rb-text', REACT[k][1]), el('span', 'rb-who', p.name));
+  const lr = layer.getBoundingClientRect();
+  let x = lr.width / 2;
+  if (chipEl) { const cr = chipEl.getBoundingClientRect(); x = Math.min(lr.width - 90, Math.max(90, cr.left + cr.width / 2 - lr.left)); }
+  b.style.left = `${x}px`;
+  layer.append(b);
+  A.sfx.hover && A.sfx.hover();
+  if (chipEl) { chipEl.classList.remove('reacting'); void chipEl.offsetWidth; chipEl.classList.add('reacting'); }
+  setTimeout(() => b.remove(), 2600);
+  while (layer.children.length > 4) layer.firstChild.remove();
+});
+
+function chip(p, reuse) {
+  // elemen chip dipakai ulang agar ketukan tidak hilang saat state berganti di tengah sentuhan
+  const c = reuse || el('div', 'chip');
+  if (reuse) { c.className = 'chip'; c.replaceChildren(); c.onclick = null; c.onkeydown = null; c.removeAttribute('role'); c.removeAttribute('tabindex'); c.removeAttribute('aria-label'); }
+  c.dataset.id = p.id;
+  const canNote = p.id !== me.id && p.alive && !p.revealed && ['PLAYING', 'ORDER'].includes(state.phase);
+  if (canNote) { c.classList.add('notable'); c.tabIndex = 0; c.setAttribute('role', 'button'); c.setAttribute('aria-label', `Catat tebakan untuk ${p.name}`); c.onclick = () => openNote(p.id); c.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openNote(p.id); } }; }
   if (p.id === state.turnPlayerId) c.classList.add('turn');
   if (!p.alive) c.classList.add('dead');
   if (p.revealed) { const im = el('img', 'chip-av'); im.src = getPortrait(p.revealed); im.alt = ch(p.revealed).name; c.append(im); }
   else if (p.avatarUrl) c.append(Home.avatar(p.name, p.avatarUrl, 'chip-av initial'));
   else c.append(initialAvatar(p.name, 'chip-av initial'));
   c.append(el('span', 'chip-name', p.name + (p.id === me.id ? ' (kamu)' : '')));
+  const g = canNote && notes[p.id] && state.figures[notes[p.id]] ? notes[p.id] : null;
+  if (g) { const gi = el('span', 'chip-guess'); const im = el('img'); im.src = getPortrait(g); im.alt = ''; gi.append(im, el('span', 'cg-q', '?')); gi.title = `Tebakanmu: ${ch(g).name}`; c.append(gi); }
   if (p.forfeit) c.append(el('span', 'chip-off', 'keluar'));
   else if (!p.connected) c.append(el('span', 'chip-off', 'offline'));
   if (p.cards.length) { const cc = el('span', 'chip-cards'); cc.innerHTML = ICON.card; cc.append(String(p.cards.length)); cc.title = `${p.cards.length} kartu`; c.append(cc); }
@@ -464,7 +530,9 @@ function renderGame() {
   if (s.phase === 'GAME_OVER') ti.textContent = `Selesai — ${s.winnerId ? pname(s.winnerId) + ' menang!' : 'tanpa pemenang'}`;
   else if (s.phase === 'ORDER') { ti.append(el('b', null, 'Urutan giliran')); ti.classList.remove('mine'); }
   else { ti.append(el('b', null, myTurn ? 'Giliranmu!' : `Giliran ${pname(s.turnPlayerId)}`)); ti.classList.toggle('mine', myTurn); }
-  $('#playerStrip').replaceChildren(...s.players.map(chip));
+  const strip = $('#playerStrip'), oldChips = new Map([...strip.children].map(x => [x.dataset.id, x]));
+  const chips = s.players.map(p => chip(p, oldChips.get(p.id)));
+  if (chips.length !== strip.children.length || chips.some((x, i) => strip.children[i] !== x)) strip.replaceChildren(...chips);
 
   const myChar = priv.charId && ch(priv.charId);
   const idBtn = $('#identityBtn');
@@ -597,13 +665,56 @@ function renderOverlay() {
     if (c) { const im = el('img', 'mini-avatar'); im.src = getPortrait(c.id); im.alt = `Foto ${c.name}`; who.append(im); }
     const nm = el('span', 'pn-wrap'); nm.append(el('span', 'pn', p.name), el('small', 'pid', c ? c.name : '?')); who.append(nm);
     li.append(who);
-    if (st.points != null) li.append(el('span', 'st-pts' + (p.guest ? ' guest' : ''), `+${st.points}`));
+    if (p.bot) li.append(el('span', 'tag bot-tag', 'bot'));
+    else if (st.practice) li.append(el('span', 'tag', 'latihan'));
+    else if (st.points != null) li.append(el('span', 'st-pts' + (p.guest ? ' guest' : ''), `+${st.points}`));
     return li;
   }));
+  renderRecap(s);
   Home.renderReward(s, me.id);
   $('#againBtn').classList.toggle('hidden', me.id !== s.hostId);
   if (!celebrated) { celebrated = true; A.sfx.win(); A.say(w && w.id === me.id ? ['gameover', 'win'] : ['gameover'], { prio: 2, ttl: 12000 }); if (w && w.id === me.id) vibrate([60, 40, 60, 40, 200]); startConfetti(); }
 }
+// ---------- rekap: gelar & momen pesta ----------
+function renderRecap(s) {
+  const r = s.recap, byId = id => s.players.find(p => p.id === id);
+  const charName = id => (ch(id) || {}).name || '?';
+  const room = id => (META.roomLabel[id] || '');
+  const aw = $('#recapAwards'), mo = $('#recapMoments');
+  aw.classList.toggle('hidden', !r || !r.awards.length);
+  mo.classList.toggle('hidden', !r || !r.timeline.length);
+  if (!r) return;
+  aw.querySelector('.award-grid').replaceChildren(...r.awards.map(a => {
+    const p = byId(a.playerId); if (!p) return el('span');
+    const card = el('article', `award aw-${a.key}` + (p.id === me.id ? ' mine' : ''));
+    const head = el('div', 'aw-head');
+    if (p.revealed) { const im = el('img', 'aw-face'); im.src = getPortrait(p.revealed); im.alt = ''; head.append(im); }
+    const t = el('div'); t.append(el('p', 'aw-title', a.title), el('p', 'aw-who', p.id === me.id ? `${p.name} (kamu)` : p.name)); head.append(t);
+    card.append(head, el('p', 'aw-text', a.text));
+    return card;
+  }));
+  mo.querySelector('.moments').replaceChildren(...r.timeline.map(t => {
+    const li = el('li'), v = byId(t.victim), b = t.by && byId(t.by);
+    li.append(el('span', 'm-turn', t.turn ? `Giliran ${t.turn}` : 'Awal'));
+    const txt = el('span', 'm-text');
+    if (t.type === 'forfeit') txt.append(el('b', null, v ? v.name : '?'), ' meninggalkan pesta lebih awal.');
+    else if (b) txt.append(el('b', null, b.name), ' membongkar ', el('b', null, v ? v.name : '?'), ` — ternyata ${charName(t.charId)}, di ${room(t.room)}.`);
+    else txt.append(el('b', null, v ? v.name : '?'), ` ketahuan sendirian di ${room(t.room)} — ternyata ${charName(t.charId)}.`);
+    li.append(txt);
+    return li;
+  }));
+  mo.querySelector('.recap-foot').textContent = [r.turns ? `${r.turns} giliran` : '', r.minutes ? `±${r.minutes} menit` : ''].filter(Boolean).join(' · ');
+}
+function resultText(s) {
+  const w = s.players.find(p => p.id === s.winnerId), lines = [`Pesta Topeng — ${w ? `${w.name} menang sebagai ${(ch(w.revealed) || {}).name}` : 'tanpa pemenang'}!`];
+  (s.standings || []).forEach(st => { const p = s.players.find(x => x.id === st.id); if (p) lines.push(`${st.placement}. ${p.name} — ${(ch(p.revealed) || {}).name || '?'}`); });
+  (s.recap?.awards || []).forEach(a => { const p = s.players.find(x => x.id === a.playerId); if (p) lines.push(`🏅 ${a.title}: ${p.name}`); });
+  return lines.join('\n');
+}
+$('#shareResultBtn').onclick = async () => {
+  const text = resultText(state), url = location.origin;
+  try { if (navigator.share) await navigator.share({ title: 'Hasil Pesta Topeng', text, url }); else { await navigator.clipboard.writeText(`${text}\n${url}`); toast('Hasil pesta disalin!'); } } catch {}
+};
 function startConfetti() {
   if (document.body.classList.contains('reduce-motion')) return;
   const cv = $('#confetti'), g = cv.getContext('2d');

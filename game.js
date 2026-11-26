@@ -89,6 +89,8 @@ function startGame(g, rng = Math.random) {
     g.spots[id] = LAYOUT.findSpot(room, othersIn(g, room, id), null, rng); // tersebar lega
   });
   g.turnIdx = 0; g.step = null; g.die = null; g.winnerId = null; g.log = []; g.lastEvent = null; g.moves = [];
+  g.stat = Object.fromEntries(g.players.map(p => [p.id, { selfMoves: 0, otherMoves: 0, movedByOthers: 0, blacks: 0, innocents: 0, cards: 0, aloneTurns: 0 }]));
+  g.timeline = []; g.turnNo = 0; g.startedAt = Date.now(); g.recap = null;
   // fase ORDER: semua pemain melempar 2 dadu angka (1–6); total tertinggi jalan duluan, seri = lempar ulang
   g.phase = 'ORDER';
   g.order = { round: 1, pending: g.players.map(p => p.id), scores: {}, last: {}, tied: [], done: null };
@@ -127,8 +129,11 @@ function eliminate(g, p, how, by = null) {
   const room = g.figures[p.charId] || null; // pulau tempat topeng terbuka
   delete g.figures[p.charId]; delete g.spots[p.charId];
   event(g, 'eliminated', p.charId, { victim: p.id, by, self: !by, room });
+  (g.timeline = g.timeline || []).push({ type: 'out', victim: p.id, by, charId: p.charId, room, turn: g.turnNo || 0 });
   log(g, `${how} ${p.name} ternyata adalah ${charLabel(p.charId)} — tersingkir!`);
 }
+
+const ST = (g, pid) => (g.stat && g.stat[pid]) || {};
 
 function checkWin(g) {
   const alive = alivePlayers(g);
@@ -136,6 +141,7 @@ function checkWin(g) {
     g.phase = 'GAME_OVER'; g.step = null;
     g.winnerId = alive[0] ? alive[0].id : null;
     g.standings = standings(g);
+    g.recap = buildRecap(g);
     log(g, alive[0] ? `🏆 ${alive[0].name} (${charLabel(alive[0].charId)}) menang!` : 'Tidak ada pemenang.');
     return true;
   }
@@ -211,6 +217,7 @@ function forfeit(g, pid) {
   const wasTurn = currentPlayer(g)?.id === pid;
   p.alive = false; p.forfeit = true; p.outAt = ++g.outSeq;
   event(g, 'forfeit', null, { by: pid });
+  (g.timeline = g.timeline || []).push({ type: 'forfeit', victim: pid, turn: g.turnNo || 0 });
   log(g, `${p.name} keluar dari pesta (menyerah).`);
   if (g.phase === 'ORDER') {
     g.order.pending = g.order.pending.filter(x => x !== pid);
@@ -222,6 +229,11 @@ function forfeit(g, pid) {
 }
 
 function nextTurn(g) {
+  g.turnNo = (g.turnNo || 0) + 1;
+  for (const p of alivePlayers(g)) { // bidak pemain yang sedang sendirian di pulaunya
+    const r = g.figures[p.charId];
+    if (r && Object.values(g.figures).filter(x => x === r).length === 1) ST(g, p.id).aloneTurns++;
+  }
   if (checkWin(g)) return;
   let i = g.turnIdx;
   do { i = (i + 1) % g.players.length; } while (!g.players[i].alive);
@@ -239,6 +251,7 @@ function roll(g, pid, rng = Math.random) {
     return;
   }
   log(g, `${p.name} melempar dadu: HITAM!`);
+  ST(g, p.id).blacks++;
   if (blackOptions(g, p).alone) {
     eliminate(g, p, 'Sendirian di pulaunya, topeng terbuka:');
     return nextTurn(g);
@@ -255,6 +268,9 @@ function move(g, pid, charId, to, spot) {
   const fromCount = Object.values(g.figures).filter(r => r === from).length;
   const toCount = Object.values(g.figures).filter(r => r === to).length;
   (g.moves = g.moves || []).push({ by: p.id, charId, from, to, fromCount, toCount });
+  if (charId === p.charId) ST(g, p.id).selfMoves++; else ST(g, p.id).otherMoves++;
+  const owner = g.players.find(x => x.alive && x.charId === charId && x.id !== p.id);
+  if (owner) ST(g, owner.id).movedByOthers++;
   g.figures[charId] = to;
   g.spots[charId] = LAYOUT.findSpot(to, othersIn(g, to, charId), spot && typeof spot === 'object' ? { x: Number(spot.x), z: Number(spot.z) } : null);
   event(g, 'move', charId, { from, to, by: p.id });
@@ -268,7 +284,7 @@ function kill(g, pid, targetId) {
   const room = g.figures[targetId];
   const victim = g.players.find(x => x.alive && x.charId === targetId);
   if (victim) eliminate(g, victim, `${p.name} membuka topeng di ${ROOM_LABEL[room]}!`, p.id);
-  else { delete g.figures[targetId]; delete g.spots[targetId]; event(g, 'killed', targetId, { by: p.id, room }); log(g, `${p.name} membuka topeng ${charLabel(targetId)} di ${ROOM_LABEL[room]} — hanya tamu biasa.`); }
+  else { ST(g, p.id).innocents++; delete g.figures[targetId]; delete g.spots[targetId]; event(g, 'killed', targetId, { by: p.id, room }); log(g, `${p.name} membuka topeng ${charLabel(targetId)} di ${ROOM_LABEL[room]} — hanya tamu biasa.`); }
   nextTurn(g);
 }
 
@@ -276,7 +292,7 @@ function draw(g, pid) {
   const p = assertTurn(g, pid, 'BLACK');
   if (!blackOptions(g, p).canDraw) throw new Error('Tidak bisa mengambil kartu');
   const id = g.deck.pop();
-  p.cards.push(id);
+  p.cards.push(id); ST(g, p.id).cards++;
   const wasOnBoard = id in g.figures;
   const room = g.figures[id] || null;
   delete g.figures[id]; delete g.spots[id];
@@ -302,6 +318,38 @@ function autoAct(g, rng = Math.random) {
   }
 }
 
+
+
+// ---------- rekap akhir pesta ----------
+// Gelar lucu dari statistik + momen penting. Tiap pemain maksimal satu gelar agar adil dibaca.
+const AWARDS = [
+  { key: 'licin', title: 'Si Licin', pick: (g, p) => (p.id === g.winnerId && ST(g, p.id).selfMoves <= 1 ? 10 - ST(g, p.id).selfMoves : 0), text: (g, p) => ST(g, p.id).selfMoves ? 'Menang dan cuma sekali menyentuh bidaknya sendiri.' : 'Menang tanpa sekali pun menyentuh bidaknya sendiri.' },
+  { key: 'bongkar', title: 'Tukang Bongkar', pick: (g, p) => p.unmasks || 0, min: 1, text: (g, p) => `Membongkar ${p.unmasks} topeng lawan.` },
+  { key: 'nyaris', title: 'Hidup di Ujung Tanduk', pick: (g, p) => ST(g, p.id).aloneTurns, min: 2, text: (g, p) => `Bidaknya sendirian ${ST(g, p.id).aloneTurns} giliran${p.alive ? ', dan tetap selamat.' : '.'}` },
+  { key: 'narsis', title: 'Sayang Diri Sendiri', pick: (g, p) => ST(g, p.id).selfMoves, min: 3, text: (g, p) => `Menggeser bidaknya sendiri ${ST(g, p.id).selfMoves} kali. Mencurigakan.` },
+  { key: 'salah', title: 'Salah Sasaran', pick: (g, p) => ST(g, p.id).innocents, min: 1, text: (g, p) => `Membuka topeng ${ST(g, p.id).innocents} tamu yang ternyata tak bersalah.` },
+  { key: 'kartu', title: 'Kolektor Kartu', pick: (g, p) => ST(g, p.id).cards, min: 2, text: (g, p) => `Membuka ${ST(g, p.id).cards} kartu dan memulangkan tamunya.` },
+  { key: 'rebutan', title: 'Paling Diperebutkan', pick: (g, p) => ST(g, p.id).movedByOthers, min: 3, text: (g, p) => `Bidaknya digeser pemain lain ${ST(g, p.id).movedByOthers} kali.` },
+  { key: 'hitam', title: 'Langganan Dadu Hitam', pick: (g, p) => ST(g, p.id).blacks, min: 3, text: (g, p) => `Dapat dadu hitam ${ST(g, p.id).blacks} kali.` },
+];
+function buildRecap(g) {
+  if (!g.stat) return null;
+  const taken = new Set(), awards = [];
+  for (const a of AWARDS) {
+    const ranked = g.players.filter(p => !p.forfeit && !taken.has(p.id)).map(p => ({ p, v: a.pick(g, p) })).filter(x => x.v >= (a.min || 1)).sort((x, y) => y.v - x.v);
+    if (!ranked.length || (ranked[1] && ranked[1].v === ranked[0].v)) continue; // seri = tidak ada gelar
+    taken.add(ranked[0].p.id);
+    awards.push({ key: a.key, title: a.title, playerId: ranked[0].p.id, text: a.text(g, ranked[0].p) });
+    if (awards.length >= 4) break;
+  }
+  return {
+    awards,
+    timeline: g.timeline || [],
+    turns: g.turnNo || 0,
+    minutes: g.startedAt ? Math.max(1, Math.round((Date.now() - g.startedAt) / 60000)) : null,
+    stats: Object.fromEntries(g.players.map(p => [p.id, { ...ST(g, p.id), unmasks: p.unmasks || 0 }])),
+  };
+}
 
 // ---------- bot ----------
 // Tiga kepribadian. kill = ambang peluang untuk membuka topeng (makin kecil makin nekat),
@@ -373,7 +421,7 @@ function botAct(g, rng = Math.random) {
 }
 
 function resetToLobby(g) {
-  g.standings = null; g.outSeq = 0; g.order = null;
+  g.standings = null; g.outSeq = 0; g.order = null; g.recap = null; g.stat = null; g.timeline = []; g.moves = [];
   g.phase = 'LOBBY'; g.figures = {}; g.spots = {}; g.deck = []; g.step = null; g.die = null; g.winnerId = null; g.log = [];
   g.players.forEach(p => { p.charId = null; p.alive = true; p.cards = []; p.outAt = null; p.unmasks = 0; p.unmasksH = 0; p.forfeit = false; });
 }
@@ -401,6 +449,7 @@ function publicView(g) {
     log: g.log,
     winnerId: g.winnerId,
     standings: g.phase === 'GAME_OVER' ? g.standings : null,
+    recap: g.phase === 'GAME_OVER' ? g.recap : null,
     order: g.order ? { round: g.order.round, pending: g.order.pending, last: g.order.last, tied: g.order.tied, done: g.order.done } : null,
   };
 }

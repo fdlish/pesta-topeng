@@ -177,8 +177,13 @@
       </div>
     </header>
     <div id="playerStrip" class="player-strip"></div>
+    <div id="reactLayer" class="react-layer" aria-live="polite"></div>
     <div id="board3d" class="board3d">
       <div id="rollBanner" class="roll-banner hidden"></div>
+      <div class="react-dock">
+        <div id="reactTray" class="react-tray hidden" role="menu" aria-label="Kirim reaksi"></div>
+        <button id="reactBtn" class="react-btn" type="button" aria-label="Kirim reaksi" aria-expanded="false" title="Reaksi"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01M15 9h.01"/></svg></button>
+      </div>
     </div>
     <div id="fx" class="fx" aria-live="polite"></div>
     <!-- lempar 2 dadu untuk urutan giliran -->
@@ -218,6 +223,14 @@
   </section>
 
   <!-- GAME OVER -->
+  <div id="noteSheet" class="overlay note-sheet hidden" role="dialog" aria-modal="true" aria-labelledby="noteTitle">
+    <div class="card note-card">
+      <div class="note-head"><div><p class="eyebrow">Catatan rahasia</p><h3 id="noteTitle"></h3></div><button id="noteClose" class="icon-btn sm" type="button" aria-label="Tutup"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+      <p class="note-sub">Hanya kamu yang bisa melihat ini. Pilih tamu yang kamu curigai.</p>
+      <div id="noteGrid" class="note-grid"></div>
+      <button id="noteClear" class="btn ghost small hidden" type="button">Hapus tebakan</button>
+    </div>
+  </div>
   <div id="overlay" class="overlay hidden">
     <canvas id="confetti" class="confetti" aria-hidden="true"></canvas>
     <div class="card win-card">
@@ -227,6 +240,9 @@
       <p id="winnerSub" class="win-sub"></p>
       <div id="rewardBox" class="reward-box hidden" aria-live="polite"></div>
       <ul id="revealList" class="plist compact reveal-list standings"></ul>
+      <section id="recapAwards" class="recap hidden" aria-label="Gelar pesta"><h3 class="recap-h">Gelar pesta</h3><div class="award-grid"></div></section>
+      <section id="recapMoments" class="recap hidden" aria-label="Momen pesta"><h3 class="recap-h">Momen pesta</h3><ol class="moments"></ol><p class="recap-foot"></p></section>
+      <button id="shareResultBtn" class="btn small share-result" type="button"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/><path d="m16 6-4-4-4 4"/><path d="M12 2v13"/></svg><span>Bagikan hasil</span></button>
       <button id="againBtn" class="btn primary">Main Lagi</button>
       <div class="over-actions">
         <button id="closeOverlay" class="btn ghost">Lihat papan</button>

@@ -656,12 +656,13 @@ export class Board3D {
     return null;
   }
   // Ketuk bidak mana pun → label nama profesinya muncul di atas kepala selama ±2,5 detik.
-  peekFigure(id) {
+  peekFigure(id, note) {
     if (!this.figures.has(id)) return;
     this.peek = { id, until: performance.now() + 3000 };
     if (!this.peekEl) { this.peekEl = document.createElement('div'); this.peekEl.className = 'peek-label'; this.peekEl.setAttribute('role', 'status'); this.container.append(this.peekEl); }
     const c = this.meta.characters.find(x => x.id === id);
     this.peekEl.textContent = c ? c.name : id;
+    if (note) { const n = document.createElement('small'); n.className = 'peek-note'; n.textContent = note; this.peekEl.append(n); }
     this.peekEl.classList.remove('show'); void this.peekEl.offsetWidth; this.peekEl.classList.add('show');
     this.dirty = true;
   }

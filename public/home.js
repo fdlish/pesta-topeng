@@ -488,6 +488,11 @@ export function renderReward(state, meId) {
   box.replaceChildren();
   const head = el('div', 'rw-head');
   head.append(el('span', `place big p${Math.min(mine.placement, 4)}`, `Juara ${mine.placement}`));
+  if (mine.practice) { // lawan bot sendirian: tidak ada poin untuk dipamerkan
+    head.append(el('span', 'rw-practice', 'Ronde latihan'));
+    box.append(head, el('p', 'rw-note', mine.placement === 1 ? 'Para bot sudah kamu kalahkan. Ajak teman untuk main berpoin!' : 'Lawan bot tidak menambah poin. Coba lagi, atau ajak teman untuk main berpoin.'));
+    return;
+  }
   const pts = el('b', 'rw-pts', '+0'); head.append(pts);
   box.append(head);
   const ul = el('ul', 'rw-lines');
