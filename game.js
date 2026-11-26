@@ -19,26 +19,26 @@ const ADJ = {
 // Dadu 7 sisi (prisma segi lima): 5 sisi pulau + 2 ujung hitam → hitam 2/7 (±29%), tiap pulau 1/7 (±14%)
 const DIE = ['papua', 'sulawesi', 'jawa', 'sumatera', 'kalimantan', 'hitam', 'hitam'];
 
-const CHARACTERS = [ // 20 tamu = 20 profesi. bio = deskripsi satir (fiksi, untuk hiburan)
+const CHARACTERS = [ // 20 tamu = 20 profesi. bio = satir fiksi ala birokrasi (untuk hiburan, tanpa tokoh nyata)
   ['koki', 'Koki', '🧑‍🍳', 'Memasak untuk program makan bergizi; porsinya menyusut tiap kali lewat meja rapat.'],
   ['polisi', 'Polisi', '👮', 'Siaga 24 jam, apalagi kalau laporannya sudah viral duluan.'],
-  ['dokter', 'Dokter', '🧑‍⚕️', 'Siap melayani semua pasien. Antreannya dibawa santai saja, sampai tahun depan.'],
-  ['damkar', 'Pemadam', '🧑‍🚒', 'Datang paling cepat, lalu ditugasi urus sarang tawon, kucing di pohon, dan cincin nyangkut.'],
+  ['dokter', 'Dokter', '🧑‍⚕️', 'Siap melayani semua pasien BPJS. Antreannya dibawa santai saja, sampai tahun depan.'],
+  ['damkar', 'Pemadam', '🧑‍🚒', 'Instansi paling responsif: urusan sarang tawon, kucing di pohon, sampai cincin nyangkut, beres.'],
   ['petani', 'Petani', '🧑‍🌾', 'Pahlawan pangan; panen rayanya selalu kompak dengan datangnya beras impor.'],
   ['pilot', 'Pilot', '🧑‍✈️', 'Selalu terbang tepat waktu, asal "tepat waktu" berarti delay dua jam.'],
-  ['astronot', 'Astronot', '🧑‍🚀', 'Siap meluncur ke luar angkasa, menunggu anggarannya meluncur lebih dulu.'],
+  ['pedangdut', 'Pedangdut', '🎤', 'Laris diundang kampanye lima tahun sekali; janji di panggung ikut bergoyang, lalu hilang bersama soundsystem.'],
   ['pelukis', 'Pelukis', '🧑‍🎨', 'Karyanya dipajang di kantor dinas; honornya masih "dalam proses".'],
   ['pesulap', 'Pesulap', '🎩', 'Ahli menghilangkan sesuatu tanpa jejak. Kartu, maksudnya. Bukan anggaran.'],
   ['koboi', 'Peternak', '🤠', 'Sapinya gemuk dan sehat, harga dagingnya tetap tidak masuk akal.'],
   ['tukang', 'Tukang', '👷', 'Bangun jalan mulus menjelang pemilu, berlubang lagi setelah pelantikan.'],
-  ['kapten', 'Kapten Kapal', '⚓', 'Mengarungi samudra luas, juga lautan dokumen izin bongkar muat.'],
+  ['guru', 'Guru Honorer', '📚', 'Mencerdaskan kehidupan bangsa sejak subuh. Gajinya cair tiga bulan sekali, jumlahnya cukup buat beli kapur.'],
   ['detektif', 'Detektif', '🕵️', 'Mampu memecahkan kasus apa pun, kecuali yang "sebaiknya" tidak dipecahkan.'],
   ['dalang', 'Dalang', '🎎', 'Piawai memainkan wayang di depan layar, konon juga di balik layar.'],
   ['profesor', 'Profesor', '🎓', 'Gelarnya berderet; sebagian jurnalnya terbit asal biaya publikasi sudah ditransfer.'],
-  ['atlet', 'Atlet', '🏅', 'Manusia rajin olahraga, tapi terhalang dana untuk ikut kompetisi bergengsi. Bonus baru cair setelah juara pakai uang sendiri.'],
-  ['dj', 'DJ', '🎧', 'Bikin pesta makin ramai; yang bikin pusing justru izin keramaiannya.'],
-  ['perawat', 'Perawat', '🩺', 'Kerja tiga shift, statusnya masih honorer sejak zaman kaset.'],
-  ['ilmuwan', 'Ilmuwan', '🧪', 'Risetnya canggih, dana penelitiannya kalah dari anggaran seminar.'],
+  ['atlet', 'Atlet', '🏅', 'Rajin latihan, tapi dana untuk kompetisi bergengsi tak kunjung turun. Bonus baru cair setelah juara pakai uang sendiri.'],
+  ['dj', 'DJ', '🎧', 'Bikin pesta makin ramai; yang bikin pusing justru izin keramaian rangkap lima.'],
+  ['perawat', 'Perawat', '🩺', 'Kerja tiga shift, tunjangannya masih menunggu tanda tangan pejabat yang sedang studi banding.'],
+  ['ilmuwan', 'Ilmuwan', '🧪', 'Risetnya canggih, dana penelitiannya kalah dari anggaran seminar di hotel bintang lima.'],
   ['kurir', 'Kurir', '📦', 'Paket sampai dalam sehari, surat ke kantor dinas butuh disposisi tujuh meja.'],
 ].map(([id, name, emoji, bio]) => ({ id, name, emoji, bio }));
 const CHAR = Object.fromEntries(CHARACTERS.map(c => [c.id, c]));

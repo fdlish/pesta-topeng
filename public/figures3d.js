@@ -16,12 +16,12 @@ export const PROFESSIONS = {
   damkar:   { body: '#c9372c', pants: '#2a2a2e', trim: '#f2c94c', hair: 'short', hairC: 'dark', hat: 'fire', extra: ['stripes'] },
   petani:   { body: '#3f6fb0', pants: '#3f6fb0', trim: '#e9d8b4', hair: 'short', hairC: 'black', hat: 'caping', extra: ['overalls'] },
   pilot:    { body: '#1f2b4a', pants: '#1f2b4a', trim: '#e2b64c', hair: 'side', hairC: 'light', hat: 'pilot', extra: ['shirtTie:#ffffff:#1f2b4a', 'wings'] },
-  astronot: { body: '#eef1f4', pants: '#d9dee4', trim: '#e0663f', hair: 'short', hairC: 'brown', hat: 'astro', extra: ['patch'] },
+  pedangdut: { body: '#d61f69', pants: '#24161f', trim: '#f2c94c', hair: 'long', hairC: 'black', hat: 'bando', extra: ['sequins', 'mic'] },
   pelukis:  { body: '#8b4a7a', pants: '#3a2f3f', trim: '#f2c14e', hair: 'bun', hairC: 'brown', hat: 'beret', extra: ['scarf', 'brush'] },
   pesulap:  { body: '#18181f', pants: '#18181f', trim: '#b3262e', hair: 'side', hairC: 'black', hat: 'tophat', extra: ['shirtBow:#ffffff:#b3262e', 'wand'] },
   koboi:    { body: '#9a6a3f', pants: '#3e5f8a', trim: '#c0392b', hair: 'short', hairC: 'brown', hat: 'cowboy', extra: ['scarf', 'beard'] },
   tukang:   { body: '#6b7280', pants: '#3b4a63', trim: '#f08a24', hair: 'short', hairC: 'black', hat: 'hardhat', extra: ['vest'] },
-  kapten:   { body: '#f7f7f4', pants: '#f7f7f4', trim: '#d8b24c', hair: 'short', hairC: 'grey', hat: 'captain', extra: ['buttons', 'beard'] },
+  guru:     { body: '#9a5b2a', pants: '#2b2f36', trim: '#e6c27a', hair: 'short', hairC: 'black', hat: 'peci', extra: ['batik', 'glasses', 'book'] },
   detektif: { body: '#8a7556', pants: '#4a3e30', trim: '#3b2f22', hair: 'side', hairC: 'dark', hat: 'fedora', extra: ['shirtTie:#efe7d6:#7a2e2e', 'magnifier'] },
   dalang:   { body: '#2b2320', pants: '#6b4a2b', trim: '#d8b24c', hair: 'short', hairC: 'black', hat: 'blangkon', extra: ['buttons'] },
   profesor: { body: '#2b2b33', pants: '#2b2b33', trim: '#d8b24c', hair: 'side', hairC: 'grey', hat: 'mortar', extra: ['glasses', 'shirtTie:#ffffff:#7a2e2e'] },
@@ -179,6 +179,15 @@ const HATS = {
     add(g, cyl(0.36, 0.36, 0.02), mat('#5e5141'), [0, HY + 0.19, -0.01]);
     add(g, cyl(0.2, 0.2, 0.045), mat('#2a221a'), [0, HY + 0.22, -0.01]);
   },
+  peci: (g) => { // peci/songkok hitam
+    const vel = mat('#141414', { roughness: 0.55, clearcoat: 0.2 });
+    add(g, cyl(0.235, 0.25, 0.13), vel, [0, HY + 0.15, -0.02], [-0.08, 0, 0]);
+    add(g, cyl(0.235, 0.235, 0.012), vel, [0, HY + 0.215, -0.025], [-0.08, 0, 0]);
+  },
+  bando: (g, p) => { // bando berkilau ala panggung dangdut
+    add(g, tor(0.262, 0.022, Math.PI), metal(p.trim), [0, HY + 0.02, -0.05], [-0.25, 0, 0]); // melengkung dari telinga ke telinga
+    for (const a of [-0.5, 0, 0.5]) add(g, sph(0.03), mat('#ffffff', { emissive: '#ffe08a', emissiveIntensity: 0.6 }), [Math.sin(a) * 0.262, HY + 0.02 + Math.cos(a) * 0.25, -0.05 + 0.06]);
+  },
   blangkon: (g, p) => {
     const batik = mat('#5a3a1e', { roughness: 0.8, clearcoat: 0 });
     add(g, cyl(0.262, 0.258, 0.13), batik, [0, HY + 0.13, -0.01]);
@@ -215,7 +224,7 @@ const HATS = {
     add(g, cyl(0.3, 0.3, 0.08, 32, true, -Math.PI * 0.32, Math.PI * 0.64), mat('#1d2530', { transparent: true, opacity: 0.6, roughness: 0.05, clearcoat: 1, side: THREE.DoubleSide }), [0, HY + 0.25, 0.02], [-0.25, 0, 0]); // visor terangkat
   },
 };
-const COVERED = new Set(['chef', 'police', 'fire', 'caping', 'pilot', 'tophat', 'cowboy', 'hardhat', 'captain', 'fedora', 'blangkon', 'mortar', 'nurse', 'courier', 'beret']);
+const COVERED = new Set(['chef', 'police', 'fire', 'caping', 'pilot', 'tophat', 'cowboy', 'hardhat', 'captain', 'fedora', 'blangkon', 'mortar', 'nurse', 'courier', 'beret', 'peci']);
 
 // ---------- detail seragam & properti ----------
 function extras(g, p, list, skin, hairCol) {
@@ -236,6 +245,10 @@ function extras(g, p, list, skin, hairCol) {
     if (kind === 'vest') { add(g, cap(0.168, 0.14), mat(p.trim), [0, 0.4, 0], [0, 0, 0], [1.08, 0.92, 0.89]); for (const y of [0.33, 0.43]) add(g, tor(0.17, 0.014), mat('#e9eef2', { emissive: '#ffffff', emissiveIntensity: 0.25 }), [0, y, 0], [Math.PI / 2, 0, 0], [1.1, 0.9, 1]); }
     if (kind === 'wings') add(g, box(0.1, 0.02, 0.01), metal(p.trim), [-0.07, 0.52, front(0.52) + 0.01]);
     if (kind === 'patch') add(g, box(0.07, 0.05, 0.01), mat(p.trim), [-0.075, 0.5, front(0.5) + 0.005]);
+    if (kind === 'sequins') for (let i = 0; i < 14; i++) { const a = (i / 14) * Math.PI * 1.6 - Math.PI * 0.8, y = 0.3 + (i % 3) * 0.08; add(g, sph(0.016), mat('#ffe9a8', { emissive: '#ffd36b', emissiveIntensity: 0.7 }), [Math.sin(a) * 0.17, y, Math.cos(a) * 0.15 + 0.01]); }
+    if (kind === 'batik') for (const y of [0.32, 0.42, 0.52]) for (const x of [-0.08, 0, 0.08]) add(g, sph(0.02), mat(p.trim), [x, y, front(y) + 0.004], [0, 0, 0], [1, 1, 0.4]);
+    if (kind === 'mic') { add(g, cyl(0.018, 0.012, 0.16, 10), gloss('#1b1b1f'), [0.25, 0.4, 0.07], [0.15, 0, -0.25]); add(g, sph(0.04), metal('#d9dde2'), [0.275, 0.49, 0.085]); }
+    if (kind === 'book') { add(g, box(0.17, 0.22, 0.04), mat('#2f63b8'), [0.26, 0.38, 0.06], [0, -0.3, -0.12]); add(g, box(0.15, 0.2, 0.042), mat('#f4efe3'), [0.265, 0.38, 0.055], [0, -0.3, -0.12]); }
     if (kind === 'medal') { add(g, tor(0.1, 0.009, Math.PI), mat('#2f63b8'), [0, 0.53, 0.1], [0.35, 0, Math.PI]); add(g, cyl(0.04, 0.04, 0.015), metal('#e2b64c'), [0, 0.42, front(0.42) + 0.02], [Math.PI / 2 - 0.15, 0, 0]); }
     if (kind === 'glasses') for (const s of [-1, 1]) add(g, tor(0.062, 0.008), mat('#1d1a19'), [s * 0.088, HY + 0.008, faceZ(s * 0.088, 0) + 0.012]);
     if (kind === 'beard') {
