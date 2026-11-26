@@ -122,8 +122,9 @@ function eliminate(g, p, how, by = null) {
   p.alive = false;
   p.outAt = ++g.outSeq; // urutan tersingkir → menentukan juara 2..8
   if (by) { const k = player(g, by); if (k) k.unmasks = (k.unmasks || 0) + 1; }
+  const room = g.figures[p.charId] || null; // benua tempat topeng terbuka
   delete g.figures[p.charId]; delete g.spots[p.charId];
-  event(g, 'eliminated', p.charId, { victim: p.id, by, self: !by });
+  event(g, 'eliminated', p.charId, { victim: p.id, by, self: !by, room });
   log(g, `${how} ${p.name} ternyata adalah ${charLabel(p.charId)} — tersingkir!`);
 }
 
@@ -194,7 +195,7 @@ function kill(g, pid, targetId) {
   const room = g.figures[targetId];
   const victim = g.players.find(x => x.alive && x.charId === targetId);
   if (victim) eliminate(g, victim, `${p.name} membuka topeng di ${ROOM_LABEL[room]}!`, p.id);
-  else { delete g.figures[targetId]; delete g.spots[targetId]; event(g, 'killed', targetId, { by: p.id }); log(g, `${p.name} membuka topeng ${charLabel(targetId)} di ${ROOM_LABEL[room]} — hanya tamu biasa.`); }
+  else { delete g.figures[targetId]; delete g.spots[targetId]; event(g, 'killed', targetId, { by: p.id, room }); log(g, `${p.name} membuka topeng ${charLabel(targetId)} di ${ROOM_LABEL[room]} — hanya tamu biasa.`); }
   nextTurn(g);
 }
 
@@ -204,8 +205,9 @@ function draw(g, pid) {
   const id = g.deck.pop();
   p.cards.push(id);
   const wasOnBoard = id in g.figures;
+  const room = g.figures[id] || null;
   delete g.figures[id]; delete g.spots[id];
-  event(g, 'left', id, { by: p.id });
+  event(g, 'left', id, { by: p.id, room });
   log(g, `${p.name} mengambil kartu: ${charLabel(id)} ${wasOnBoard ? 'pulang dari pesta' : '(sudah tidak di pesta)'}.`);
   nextTurn(g);
 }

@@ -401,6 +401,11 @@ function showReveal(ev, done) {
     kicker = 'TAMU PULANG'; title = `${c.name} pulang dari pesta`; line = `Kartu diambil oleh ${pname(ev.by)}:`; A.sfx.card();
   }
   front.append(el('p', 'rv-kicker', kicker), pic, el('h3', 'rv-title', title), el('p', 'rv-line', line), el('p', 'rv-role', c.name.toUpperCase()));
+  if (ev.room && META.roomLabel[ev.room]) { // benua tempat topeng dibuka / tamu pulang
+    const place = el('p', 'rv-place');
+    place.append(el('span', null, ev.type === 'left' ? 'Pulang dari' : 'Di benua'), el('b', `rv-room die-${ev.room}`, META.roomLabel[ev.room].toUpperCase()));
+    front.append(place);
+  }
   if (ev.type === 'eliminated') front.append(el('p', 'rv-bio', c.bio));
   front.append(el('p', 'rv-hint', 'Ketuk untuk lanjut'));
   inner.append(back, front); card.append(inner);

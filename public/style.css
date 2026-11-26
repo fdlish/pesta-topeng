@@ -635,3 +635,7 @@ html, body { overflow-x: clip; }
 .stat b, .rw-pts, .pod-block, .pod-rank, .ir-cell, .ir-hash { font-family: var(--sans); font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
 .stat b { font-size: 1.3rem; }
 .recent-list li.muted { display: block; padding: 12px 4px; }
+
+/* kartu pengungkapan: benua tempat kejadian */
+.rv-place { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 10px 0 0; font-size: .9rem; color: var(--muted); }
+.rv-room { display: inline-flex; align-items: center; padding: 4px 12px; border-radius: 999px; font: 800 .9rem var(--sans); letter-spacing: .06em; color: #fff; border: 1px solid rgba(255,255,255,.25); box-shadow: 0 6px 16px -8px rgba(0,0,0,.8); }
