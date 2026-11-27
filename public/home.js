@@ -32,6 +32,13 @@ export function avatar(name, url, cls = 'p-avatar') {
   im.onerror = () => im.replaceWith(fallback());
   return im;
 }
+// Lencana gelar dari misi (warna sesuai tingkat kesulitan)
+export function titleBadge(t, small) {
+  if (!t) return null;
+  const b = el('span', `title-badge tb-${t.tier}` + (small ? ' sm' : ''), t.title);
+  b.title = `Gelar ${({ mudah: 'mudah', sedang: 'sedang', sulit: 'sulit', legendaris: 'legendaris' })[t.tier] || ''}`;
+  return b;
+}
 export function tierBadge(t, small) {
   if (!t) return el('span');
   const b = el('span', 'tier' + (small ? ' sm' : ''), t.name); b.style.setProperty('--tc', t.color);
@@ -53,6 +60,7 @@ export function initHome(config, deps) {
   setupTabs();
   setupSeg();
   setupNameDialog();
+  setupPlayerModal();
   renderRules();
   $('#createBtn').onclick = createRoom;
   $('#practiceBtn').onclick = startPractice;
@@ -288,7 +296,10 @@ function renderLeaderboard(animate) {
     }
     const av = el('div', 'pod-av'); av.append(avatar(r.username, r.avatarUrl, 'p-avatar lg'));
     if (place === 1) { const c = el('span', 'pod-crown'); c.innerHTML = IC.crown; av.append(c); }
-    d.append(av, el('b', 'pod-name', r.username), el('span', 'pod-pts', `${fmt(r.points)} poin`));
+    d.append(av, el('b', 'pod-name', r.username));
+    if (r.title) d.append(titleBadge(r.title, true));
+    d.append(el('span', 'pod-pts', `${fmt(r.points)} poin`));
+    if (r.publicId !== myId) { d.classList.add('clickable'); d.tabIndex = 0; d.setAttribute('role', 'button'); d.setAttribute('aria-label', `Lihat profil ${r.username}`); d.onclick = () => openPlayer(r.publicId); d.onkeydown = e => { if (e.key === 'Enter') openPlayer(r.publicId); }; }
     const blk = el('div', 'pod-block'); blk.append(el('span', 'pod-rank', String(place))); d.append(blk);
     d.title = `#${r.publicId} · ${r.wins} menang dari ${r.games} pesta`;
     return d;
@@ -310,6 +321,8 @@ function lbRow(r, mine, tag = 'li') {
   li.append(avatar(r.username, r.avatarUrl, 'p-avatar sm'));
   const who = el('span', 'lb-who'); who.append(el('b', null, r.username + (mine ? ' (kamu)' : '')));
   const sub = el('small'); sub.append(`#${r.publicId} · ${r.wins} menang · `, tierBadge(r.tier, true)); who.append(sub);
+  if (r.title) who.append(titleBadge(r.title, true));
+  if (r.publicId && !mine) { li.classList.add('clickable'); li.tabIndex = 0; li.setAttribute('role', 'button'); li.setAttribute('aria-label', `Lihat profil ${r.username}`); li.onclick = () => openPlayer(r.publicId); li.onkeydown = e => { if (e.key === 'Enter') openPlayer(r.publicId); }; }
   li.append(who, el('span', 'lb-pts', fmt(r.points)));
   return li;
 }
@@ -350,6 +363,7 @@ async function renderProfile(fetchStats) {
   idb.append(el('span', null, '#' + p.publicId)); idb.insertAdjacentHTML('beforeend', IC.copy);
   idb.onclick = async () => { try { await navigator.clipboard.writeText(p.publicId); D.toast('ID disalin'); } catch { D.toast('ID kamu: ' + p.publicId); } };
   who.append(idb, tierBadge(p.tier));
+  if (p.title) who.append(titleBadge(p.title));
   top.append(who); card.append(top);
   // progres tier
   const nt = nextTier(p.points);
@@ -377,15 +391,102 @@ async function renderProfile(fetchStats) {
     ul.append(li);
   });
   recentWrap.append(ul); card.append(recentWrap);
+  card.append(missionSection());
   const act = el('div', 'pc-actions');
   const eb = el('button', 'btn'); eb.innerHTML = IC.edit; eb.append(el('span', null, 'Ubah nama')); eb.onclick = () => openNameDialog(true);
   const ob = el('button', 'btn ghost'); ob.innerHTML = IC.out; ob.append(el('span', null, 'Keluar')); ob.onclick = async () => { await Auth.signOut(); stats = null; D.toast('Kamu sudah keluar'); };
   act.append(eb, ob); card.append(act);
   v.append(card);
   if (fetchStats) {
-    const r = await new Promise(res => D.socket.emit('my_stats', {}, res));
+    const [r, m] = await Promise.all([new Promise(res => D.socket.emit('my_stats', {}, res)), new Promise(res => D.socket.emit('my_missions', {}, res))]);
+    if (m && !m.error) myMissions = m;
     if (r && !r.error) { stats = r; acct.rank = r.rank; acct.profile = r.profile; renderAccount(); if (activeTab === 'me') renderProfile(false); }
   }
+}
+
+// ------------------------------------------------------- misi & gelar ---
+let myMissions = null;
+const TIER_ORDER = ['mudah', 'sedang', 'sulit', 'legendaris'];
+const TIER_LABEL = { mudah: 'Mudah', sedang: 'Sedang', sulit: 'Sulit', legendaris: 'Legendaris' };
+function missionSection() {
+  const wrap = el('section', 'missions');
+  const list = myMissions?.missions;
+  const doneN = list ? list.filter(m => m.done).length : 0;
+  const head = el('div', 'ms-head');
+  head.append(el('h3', null, 'Gelar & misi'), el('span', 'muted', list ? `${doneN} dari ${list.length} terbuka` : 'Memuat…'));
+  wrap.append(head);
+  wrap.append(el('p', 'ms-note', 'Selesaikan misi untuk membuka gelar, lalu pakai satu gelar agar terlihat di lobby, papan peringkat, dan profilmu. Hanya pesta dengan minimal 2 manusia yang dihitung.'));
+  if (!list) return wrap;
+  const cur = myMissions.title;
+  for (const tier of TIER_ORDER) {
+    const g = el('div', `ms-tier tt-${tier}`);
+    g.append(el('h4', null, TIER_LABEL[tier]));
+    const ul = el('ul', 'ms-list');
+    for (const m of list.filter(x => x.tier === tier)) {
+      const li = el('li', 'ms-item' + (m.done ? ' done' : ''));
+      const main = el('div', 'ms-main');
+      main.append(titleBadge({ title: m.title, tier: m.tier }, true), el('span', 'ms-desc', m.desc));
+      if (!m.done && m.goal) {
+        const bar = el('div', 'ms-bar'); bar.setAttribute('role', 'progressbar'); bar.setAttribute('aria-valuemin', '0'); bar.setAttribute('aria-valuemax', String(m.goal)); bar.setAttribute('aria-valuenow', String(m.now || 0)); bar.setAttribute('aria-label', m.title);
+        const fill = el('i'); fill.style.width = `${Math.min(100, ((m.now || 0) / m.goal) * 100)}%`; bar.append(fill);
+        main.append(el('div', 'ms-prog', null)); main.lastChild.append(bar, el('small', null, `${m.now || 0}/${m.goal}`));
+      }
+      li.append(main);
+      if (m.done) {
+        const on = cur === m.key;
+        const b = el('button', 'btn small ms-use' + (on ? ' on' : ''), on ? 'Dipakai' : 'Pakai');
+        b.setAttribute('aria-pressed', String(on));
+        b.onclick = () => setTitle(on ? null : m.key);
+        li.append(b);
+      } else li.append(el('span', 'ms-lock', 'Terkunci'));
+      ul.append(li);
+    }
+    g.append(ul); wrap.append(g);
+  }
+  return wrap;
+}
+async function setTitle(key) {
+  const r = await new Promise(res => D.socket.emit('set_title', { key }, res));
+  if (!r || r.error) return D.toast(r?.error || 'Gagal memakai gelar');
+  applyMe(r); if (myMissions) myMissions.title = key;
+  lb = null;
+  D.toast(key ? `Gelar dipakai: ${r.profile.title?.title}` : 'Gelar dilepas');
+  if (activeTab === 'me') renderProfile(false);
+}
+
+// -------------------------------------------- profil pemain lain (popup) ---
+export async function openPlayer(publicId) {
+  const dlg = $('#playerModal'), body = $('#playerBody');
+  body.replaceChildren(el('p', 'muted center', 'Memuat profil…'));
+  dlg.classList.remove('hidden'); $('#playerClose').focus();
+  let r = null;
+  try { r = await (await fetch(`/api/player/${encodeURIComponent(publicId)}`)).json(); } catch {}
+  if (!r || !r.profile) { body.replaceChildren(el('p', 'muted center', 'Profil tidak ditemukan.')); return; }
+  const p = r.profile;
+  const top = el('div', 'pc-top');
+  top.append(avatar(p.username, p.avatarUrl, 'p-avatar xl'));
+  const who = el('div', 'pc-who'); who.append(el('h2', null, p.username), el('span', 'id-pill static', '#' + p.publicId), tierBadge(p.tier));
+  if (p.title) who.append(titleBadge(p.title));
+  top.append(who);
+  const grid = el('div', 'stat-grid');
+  const wr = p.games ? Math.round((p.wins / p.games) * 100) : 0;
+  [['Poin', fmt(p.points)], ['Peringkat', r.rank && p.games ? '#' + r.rank : '–'], ['Pesta', fmt(p.games)], ['Menang', fmt(p.wins)], ['Rasio menang', `${wr}%`], ['Gelar', String(p.titles || 0)]]
+    .forEach(([k, v]) => { const s = el('div', 'stat'); s.append(el('b', null, v), el('span', null, k)); grid.append(s); });
+  const coll = el('div', 'pl-titles');
+  coll.append(el('h3', null, 'Koleksi gelar'));
+  const cat = CONFIG.missions?.missions || [];
+  const unlocked = cat.filter(m => (r.unlocked || []).includes(m.key)).sort((a, b) => TIER_ORDER.indexOf(b.tier) - TIER_ORDER.indexOf(a.tier));
+  const row = el('div', 'pl-title-row');
+  if (unlocked.length) unlocked.forEach(m => row.append(titleBadge(m, true))); else row.append(el('span', 'muted', 'Belum ada gelar.'));
+  coll.append(row);
+  body.replaceChildren(top, grid, coll);
+}
+export function setupPlayerModal() {
+  const dlg = $('#playerModal');
+  const close = () => dlg.classList.add('hidden');
+  $('#playerClose').onclick = close;
+  dlg.addEventListener('click', e => { if (e.target === dlg) close(); });
+  dlg.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
 }
 
 // ------------------------------------------------------ dialog username ---
@@ -491,7 +592,7 @@ export function renderReward(state, meId) {
   const meP = state.players.find(p => p.id === meId);
   if (!mine || !meP) return box.classList.add('hidden');
   box.classList.remove('hidden');
-  const key = JSON.stringify([mine.placement, !!reward, reward?.total, meP.guest]);
+  const key = JSON.stringify([mine.placement, !!reward, reward?.total, meP.guest, !!reward?.missions]);
   if (box.dataset.key === key) return;
   box.dataset.key = key;
   box.replaceChildren();
@@ -522,6 +623,18 @@ export function renderReward(state, meId) {
     }
   }
   box.append(foot);
+  const ms = reward && reward.missions;
+  if (ms && !meP.guest) {
+    const m = el('div', 'rw-missions');
+    if (ms.secret) m.append(el('p', 'rw-secret ' + (ms.secret.done ? 'ok' : 'no'), (ms.secret.done ? 'Misi rahasia selesai: ' : 'Misi rahasia gagal: ') + ms.secret.text));
+    for (const t of ms.unlocked || []) {
+      const u = el('div', 'rw-unlock'); u.append(el('span', null, 'Gelar baru terbuka!'), titleBadge(t));
+      const b = el('button', 'link-btn', 'Pakai sekarang'); b.onclick = () => { setTitle(t.key); b.remove(); }; u.append(b);
+      m.append(u);
+    }
+    if ((ms.unlocked || []).length) D.sfx.win && setTimeout(() => D.sfx.win(), 900);
+    if (m.childNodes.length) box.append(m);
+  }
 }
 function countUp(node, to, prefix = '') {
   if (reduced() || to <= 0) { node.textContent = prefix + to; return; }

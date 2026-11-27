@@ -36,6 +36,17 @@ Dadu berbentuk **prisma segi lima dengan 7 sisi**: 5 sisi panjang PAPUA, SULAWES
 - **Drama di meja**: semua tamu gemetar saat dadu hitam, meja bergetar dan ada jeda sebelum kartu dibalik saat topeng terbuka.
 - **Identitas undangan**: beranda berupa kartu undangan kunyit dengan pita batik kawung dan cap "Rahasia", latar nila. Huruf **Shrikhand** (judul besar, gaya papan cat tangan) dan **Plus Jakarta Sans** (karya foundry Indonesia, untuk teks). Link undangan menampilkan gambar pratinjau (`public/og.jpg`) dan menyebut kode room serta nama pengundang di WhatsApp/Telegram.
 
+## Misi & gelar
+- **Misi rahasia per pesta**: setiap pemain dapat satu misi acak di kartu tamunya (mis. "Geser tamu milik orang lain 5 kali", "Singgahi 4 pulau berbeda", "Bertahan sampai tengah malam"). Progresnya tampil langsung, dan hasil semua pemain dibuka di layar akhir.
+- **22 misi akun** dalam 4 tingkat (`missions.js`). Setiap misi membuka satu **gelar**:
+  - *Mudah*: Tamu Baru (1 pesta), Pemenang Perdana, Si Penyelidik, Agen Rahasia, Pengantar Pulang.
+  - *Sedang*: Tamu Setia (**25 pesta**), Langganan Juara (10 menang), Pemburu Topeng, Mata-Mata, Detektif Jitu, Si Licin.
+  - *Sulit*: Penghuni Pesta (**50 pesta**), Penguasa Pesta (25 menang), Peramal, Nyawa Sembilan, Penyapu Bersih, Penguasa Malam.
+  - *Legendaris*: Legenda Pesta (**100 pesta**), Dalang Agung (50 menang), Bayangan, Topeng Emas, Kolektor Gelar (15 gelar lain).
+- Pilih gelar di **Profil → Gelar & misi**. Gelar tampil di lobby, papan peringkat/podium, dan kartu profil saat nama pemain diketuk.
+- Progres hanya dihitung di pesta dengan minimal 2 pemain manusia (latihan lawan bot tidak dihitung). Statistik lama pemain otomatis dihitung sekali ke misi kumulatif.
+- Supabase: kolom `profiles.progress jsonb` dan `profiles.title text` (lihat `supabase/schema.sql`).
+
 ## Pengalaman bermain (polesan v2)
 - **Musik latar generatif**, bergaya *masquerade lounge*: progresi jazz ii–V–I, bas, sikat drum, dan melodi acak, jadi tidak pernah berulang persis. Tempo dan perkusi naik saat tersisa 2 pemain. Dibuat dengan WebAudio, tanpa file. Musik berhenti saat tab disembunyikan.
 - **17 efek suara**: klik, hover, ambil/lepas bidak, kocokan & pantulan dadu, *swoosh* terbang, lonceng "giliranmu", detik terakhir timer, dentuman buka topeng, *poof* tamu biasa, kartu dibalik, fanfare menang, nada kalah, pemain bergabung, dan error.

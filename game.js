@@ -59,6 +59,35 @@ function shuffle(arr, rng = Math.random) {
 function createGame() {
   return { phase: 'LOBBY', players: [], figures: {}, spots: {}, deck: [], turnIdx: 0, step: null, die: null, log: [], winnerId: null, seq: 0, rollId: 0, lastEvent: null, eventId: 0, rules: { accuse: true, midnight: true } };
 }
+// ---------- misi rahasia pesta ----------
+// now(st) = progres berjalan; end(ctx) = penilaian di akhir pesta (ctx: placement, n, won, alive)
+const SECRET_MISSIONS = [
+  { key: 'kartu2', text: 'Buka 2 kartu tamu.', goal: 2, now: st => st.cards },
+  { key: 'geser5', text: 'Geser tamu milik orang lain 5 kali.', goal: 5, now: st => st.otherMoves },
+  { key: 'bongkar1', text: 'Bongkar topeng 1 pemain lawan.', goal: 1, now: (st, p) => p.unmasks || 0 },
+  { key: 'hitam3', text: 'Dapat dadu hitam 3 kali dan tetap selamat.', goal: 3, now: st => st.blacks, end: (x, st) => st.blacks >= 3 && x.alive },
+  { key: 'singgah4', text: 'Buat tamumu singgah di 4 pulau berbeda.', goal: 4, now: st => (st.visited || []).length },
+  { key: 'hantu', text: 'Jangan sekali pun menggeser tamumu sendiri, dan bertahan sampai 3 besar.', end: (x, st) => st.selfMoves === 0 && x.placement <= 3, fail: st => st.selfMoves > 0 },
+  { key: 'tengahmalam', text: 'Bertahan sampai tengah malam.', needs: g => g.rules && g.rules.midnight, end: (x, st) => !!st.atMidnight, done: st => !!st.atMidnight },
+  { key: 'dua', text: 'Bertahan sampai 2 besar.', end: x => x.placement <= 2 },
+];
+const SECRET_BY = Object.fromEntries(SECRET_MISSIONS.map(m => [m.key, m]));
+function secretStatus(g, p, final) {
+  const m = SECRET_BY[g.secret && g.secret[p.id]]; if (!m) return null;
+  const st = ST(g, p.id);
+  const now = m.now ? Math.min(m.now(st, p), m.goal) : null;
+  let done = m.done ? m.done(st) : m.goal ? now >= m.goal : false;
+  let failed = m.fail ? m.fail(st) : false;
+  if (final) {
+    const sd = (g.standings || []).find(x => x.id === p.id);
+    const x = { placement: sd ? sd.placement : 99, alive: p.alive, won: g.winnerId === p.id };
+    done = m.end ? m.end(x, st) : done;
+    failed = !done;
+  } else if (m.end && !m.now && !m.done) done = false; // baru bisa dinilai di akhir
+  if (m.end && m.now && !final) done = false;
+  return { key: m.key, text: m.text, now, goal: m.goal || null, done: !!done && !failed, failed: !!failed };
+}
+
 const MIDNIGHT_ROUNDS = Number(process.env.MIDNIGHT_ROUNDS) || 5; // tengah malam setelah 5 putaran penuh
 const MIDNIGHT_BLACK = 3 / 7;       // peluang dadu hitam setelah tengah malam (biasanya 2/7)
 
@@ -93,7 +122,10 @@ function startGame(g, rng = Math.random) {
     g.spots[id] = LAYOUT.findSpot(room, othersIn(g, room, id), null, rng); // tersebar lega
   });
   g.turnIdx = 0; g.step = null; g.die = null; g.winnerId = null; g.log = []; g.lastEvent = null; g.moves = [];
-  g.stat = Object.fromEntries(g.players.map(p => [p.id, { selfMoves: 0, otherMoves: 0, movedByOthers: 0, blacks: 0, innocents: 0, cards: 0, aloneTurns: 0 }]));
+  g.stat = Object.fromEntries(g.players.map(p => [p.id, { selfMoves: 0, otherMoves: 0, movedByOthers: 0, blacks: 0, innocents: 0, cards: 0, aloneTurns: 0, visited: [g.figures[p.charId]] }]));
+  // misi rahasia pesta: satu per pemain, acak, hanya diketahui pemiliknya
+  const pool = SECRET_MISSIONS.filter(m => !m.needs || m.needs(g));
+  g.secret = Object.fromEntries(g.players.map(p => [p.id, pool[Math.floor(Math.random() * pool.length)].key]));
   g.timeline = []; g.turnNo = 0; g.startedAt = Date.now(); g.recap = null;
   // fase ORDER: semua pemain melempar 2 dadu angka (1–6); total tertinggi jalan duluan, seri = lempar ulang
   g.phase = 'ORDER';
@@ -238,6 +270,7 @@ function nextTurn(g) {
   g.turnNo = (g.turnNo || 0) + 1;
   if (g.rules && g.rules.midnight && !g.midnight && g.turnNo >= g.midnightAt) { // status, bukan event: tidak menimpa pengungkapan
     g.midnight = true;
+    for (const q of alivePlayers(g)) ST(g, q.id).atMidnight = 1;
     log(g, 'Tengah malam! Lampu meredup, dadu hitam lebih sering muncul.');
   }
   for (const p of alivePlayers(g)) { // bidak pemain yang sedang sendirian di pulaunya
@@ -302,6 +335,8 @@ function move(g, pid, charId, to, spot) {
   const toCount = Object.values(g.figures).filter(r => r === to).length;
   (g.moves = g.moves || []).push({ by: p.id, charId, from, to, fromCount, toCount });
   if (charId === p.charId) ST(g, p.id).selfMoves++; else ST(g, p.id).otherMoves++;
+  const holder = g.players.find(x => x.charId === charId);
+  if (holder) { const v = ST(g, holder.id).visited || (ST(g, holder.id).visited = []); if (!v.includes(to)) v.push(to); }
   const owner = g.players.find(x => x.alive && x.charId === charId && x.id !== p.id);
   if (owner) ST(g, owner.id).movedByOthers++;
   g.figures[charId] = to;
@@ -516,6 +551,7 @@ function publicView(g) {
     winnerId: g.winnerId,
     standings: g.phase === 'GAME_OVER' ? g.standings : null,
     recap: g.phase === 'GAME_OVER' ? g.recap : null,
+    secrets: g.phase === 'GAME_OVER' ? Object.fromEntries(g.players.map(p => [p.id, secretStatus(g, p, true)])) : null,
     rules: g.rules || { accuse: true, midnight: true },
     midnight: !!g.midnight, midnightAt: g.midnightAt || 0, turnNo: g.turnNo || 0,
     order: g.order ? { round: g.order.round, pending: g.order.pending, last: g.order.last, tied: g.order.tied, done: g.order.done } : null,
@@ -526,11 +562,12 @@ function privateView(g, p) {
   const v = { charId: p.charId };
   const cp = currentPlayer(g);
   if (cp && cp.id === p.id && g.step === 'BLACK') Object.assign(v, blackOptions(g, p));
+  if (g.phase === 'PLAYING' || g.phase === 'GAME_OVER') v.secret = secretStatus(g, p, g.phase === 'GAME_OVER');
   return v;
 }
 
 module.exports = {
   ROOMS, ROOM_LABEL, ROOM_COLOR_NAME, ADJ, DIE, CHARACTERS, MIN_PLAYERS, MAX_PLAYERS,
   createGame, startGame, roll, accuse, move, kill, draw, autoAct, resetToLobby, legalMoves, blackOptions,
-  publicView, privateView, currentPlayer, player, standings, forfeit, orderRoll, orderAutoRoll, botAct, BOT_STYLES, BOT_NAMES,
+  secretStatus, publicView, privateView, currentPlayer, player, standings, forfeit, orderRoll, orderAutoRoll, botAct, BOT_STYLES, BOT_NAMES,
 };

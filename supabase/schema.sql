@@ -28,6 +28,10 @@ create table if not exists public.profiles (
 );
 
 -- username unik tanpa membedakan huruf besar/kecil
+-- misi & gelar (ditambahkan belakangan; aman dijalankan ulang)
+alter table public.profiles add column if not exists progress jsonb not null default '{}'::jsonb;
+alter table public.profiles add column if not exists title text check (title is null or title ~ '^[a-z0-9_]{2,24}$');
+
 create unique index if not exists profiles_username_lower_key
   on public.profiles (lower(username));
 

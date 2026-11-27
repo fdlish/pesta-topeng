@@ -8,6 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const SCORING = require('./scoring');
+const MISSIONS = require('./missions');
 
 const USERNAME_RE = /^[A-Za-z0-9_]{3,16}$/;
 const ID_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -26,6 +27,8 @@ const pub = p => p && ({
   publicId: p.public_id, username: p.username, avatarUrl: p.avatar_url || null,
   points: Number(p.points) || 0, games: p.games || 0, wins: p.wins || 0, unmasks: p.unmasks || 0,
   tier: SCORING.tierOf(Number(p.points) || 0),
+  title: MISSIONS.titleOf(p.title && p.progress?.done?.[p.title] ? p.title : null),
+  titles: Object.keys(p.progress?.done || {}).length,
 });
 
 // Peringkat kompetisi standar: seri poin dipecah kemenangan, seri penuh = peringkat sama.
@@ -102,9 +105,19 @@ class SupabaseStore {
     if (error) throw error;
   }
 
+  async saveProgress(uid, progress) {
+    const { error } = await this.db.from('profiles').update({ progress, updated_at: new Date().toISOString() }).eq('user_id', uid);
+    if (error) throw error;
+  }
+  async setTitle(uid, key) {
+    const { data, error } = await this.db.from('profiles').update({ title: key }).eq('user_id', uid).select().single();
+    if (error) throw error;
+    return data;
+  }
+
   async leaderboard(limit = 50) {
     const { data, error } = await this.db.from('profiles')
-      .select('public_id, username, avatar_url, points, games, wins, unmasks')
+      .select('public_id, username, avatar_url, points, games, wins, unmasks, title, progress')
       .gt('games', 0)
       .order('points', { ascending: false }).order('wins', { ascending: false }).order('games', { ascending: true })
       .limit(limit);
@@ -177,6 +190,8 @@ class LocalStore {
     return p;
   }
   async touchAvatar() {}
+  async saveProgress(uid, progress) { const p = this.data.profiles[uid]; if (p) { p.progress = progress; this.save(); } }
+  async setTitle(uid, key) { const p = this.data.profiles[uid]; if (p) { p.title = key; this.save(); } return p; }
   async awardMatch(code, n, results) {
     const id = this.data.matches.length + 1;
     const at = new Date().toISOString();

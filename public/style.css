@@ -1120,3 +1120,56 @@ body.reduce-motion .midnight-pill.soon { animation: none; }
 .mark-chip.on { background: var(--kunyit); }
 .mark-chip.clear { background: transparent; color: var(--muted); box-shadow: none; border: 1.5px solid var(--border-strong); }
 .mark-chip:active { transform: translateY(1px); }
+
+/* =========================== MISI & GELAR =========================== */
+.title-badge { display: inline-flex; align-items: center; width: fit-content; max-width: 100%; padding: 2px 9px; border-radius: 6px; font: 800 .74rem/1.4 var(--sans);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 2px 0 rgba(0,0,0,.3); }
+.title-badge.sm { font-size: .68rem; padding: 1px 7px; }
+.tb-mudah { background: var(--kertas); color: var(--nila-ink); }
+.tb-sedang { background: #3f8a5e; color: #f3fff6; }
+.tb-sulit { background: var(--cabai); color: #fff3ee; }
+.tb-legendaris { background: var(--kunyit); color: var(--nila-ink); outline: 1.5px solid var(--nila-ink); outline-offset: -4px; font-family: var(--display); font-weight: 400; letter-spacing: .02em; }
+.pn-wrap .title-badge { margin-top: 3px; }
+.lb-who .title-badge { margin-top: 3px; }
+.pc-who .title-badge { margin-top: 6px; }
+.clickable .pname[role=button], li.lb-row.clickable { cursor: pointer; }
+.clickable .pname[role=button]:hover .pn { text-decoration: underline; text-decoration-color: var(--kunyit); }
+.clickable .pname[role=button]:focus-visible, li.lb-row.clickable:focus-visible { outline: 2px solid var(--kunyit); outline-offset: 3px; border-radius: 8px; }
+/* profil: daftar misi */
+.missions { margin-top: 18px; text-align: left; }
+.ms-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.ms-head h3 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 1.3rem; color: var(--kunyit); }
+.ms-note { margin: 4px 0 10px; font-size: .82rem; color: var(--muted); line-height: 1.45; }
+.ms-tier h4 { margin: 14px 0 6px; font-size: .88rem; font-weight: 800; color: var(--text); }
+.ms-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.ms-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--border); }
+.ms-item:not(.done) .title-badge { filter: grayscale(.85) brightness(.75); }
+.ms-main { display: grid; gap: 4px; min-width: 0; }
+.ms-desc { font-size: .84rem; color: var(--muted); line-height: 1.35; }
+.ms-item.done .ms-desc { color: var(--text); }
+.ms-prog { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; }
+.ms-prog small { font: 700 .74rem var(--sans); color: var(--muted); font-variant-numeric: tabular-nums; }
+.ms-bar { height: 6px; border-radius: 99px; background: rgba(242,193,78,.14); overflow: hidden; }
+.ms-bar i { display: block; height: 100%; background: var(--kunyit); border-radius: inherit; }
+.ms-lock { font-size: .74rem; font-weight: 700; color: var(--muted); }
+.ms-use { min-height: 36px; padding: 0 12px; margin: 0; }
+.ms-use.on { background: var(--kunyit); color: var(--nila-ink); border-color: var(--kunyit); }
+/* popup profil pemain */
+.player-card { position: relative; max-width: 440px; text-align: left; max-height: 88dvh; overflow-y: auto; }
+.player-close { position: absolute; top: 12px; right: 12px; }
+.id-pill.static { cursor: default; }
+.pl-titles h3 { margin: 16px 0 8px; font-size: .95rem; }
+.pl-title-row { display: flex; flex-wrap: wrap; gap: 6px; }
+/* kartu tamu & hadiah */
+.id-secret { display: block; margin-top: 6px; padding: 6px 8px; border-radius: 8px; background: rgba(20,27,56,.08); font-size: .8rem; line-height: 1.35; color: var(--nila-ink); }
+.id-secret b { font-weight: 800; }
+.sec-state.ok { color: #2f6b4f; font-weight: 800; } .sec-state.no { color: var(--cabai); font-weight: 800; }
+.rv-secret { display: block; font-size: .72rem; margin-top: 2px; }
+.rv-secret.ok { color: #7fd6a2; } .rv-secret.no { color: var(--muted); }
+.rw-missions { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--border-strong); display: grid; gap: 8px; text-align: left; }
+.rw-secret { margin: 0; font-size: .86rem; } .rw-secret.ok { color: #7fd6a2; font-weight: 700; } .rw-secret.no { color: var(--muted); }
+.rw-unlock { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px; background: rgba(242,193,78,.1); animation: popIn .5s var(--spring) both; }
+.rw-unlock > span:first-child { font-weight: 800; color: var(--kunyit); }
+.pod.clickable { cursor: pointer; }
+.pod.clickable:focus-visible { outline: 2px solid var(--kunyit); outline-offset: 4px; border-radius: 12px; }
+.pod .title-badge { margin: 2px auto 0; }

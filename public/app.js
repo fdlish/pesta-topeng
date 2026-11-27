@@ -296,8 +296,13 @@ function playerItem(p, opts = {}) {
   else if (p.guest) sub.textContent = 'tamu · tanpa poin';
   else if (p.publicId) sub.textContent = '#' + p.publicId + (p.tier && p.tier.min > 0 && !opts.game ? ' · ' + p.tier.name : '');
   if (sub.textContent) nm.append(sub);
+  if (p.title && !p.bot) nm.append(Home.titleBadge(p.title, true)); // gelar dari misi
   left.append(nm);
   li.append(left);
+  if (p.publicId && !opts.game) { // ketuk untuk melihat profil pemain
+    li.classList.add('clickable'); left.tabIndex = 0; left.setAttribute('role', 'button'); left.setAttribute('aria-label', `Lihat profil ${p.name}`);
+    left.onclick = () => Home.openPlayer(p.publicId); left.onkeydown = e => { if (e.key === 'Enter') Home.openPlayer(p.publicId); };
+  }
   const right = el('span', 'pmeta');
   if (opts.game) {
     if (p.revealed) { const c = ch(p.revealed); right.append(el('span', 'revealed', c.name)); }
@@ -723,6 +728,9 @@ function renderGame() {
   if (open) { const src = getPortrait(myChar.id); if (av.getAttribute('src') !== src) av.src = src; av.alt = `Foto ${myChar.name}`; }
   $('#idName').textContent = open ? myChar.name + (me.alive ? '' : ', tersingkir') : '';
   $('#identityText').textContent = !myChar ? '…' : open ? myChar.bio : 'Ketuk untuk lihat identitasmu';
+  const sec = priv.secret, secEl = $('#idSecret');
+  secEl.classList.toggle('hidden', !(open && sec));
+  if (open && sec) secEl.replaceChildren(el('b', null, 'Misi rahasia: '), sec.text + (sec.goal ? ` (${sec.now || 0}/${sec.goal})` : ''), el('span', 'sec-state ' + (sec.done ? 'ok' : sec.failed ? 'no' : ''), sec.done ? ' Selesai!' : sec.failed ? ' Gagal' : ''));
   $('#idHint').textContent = !myChar ? '' : !me.alive ? 'Topengmu sudah terbuka.' : showId ? 'Bidakmu ditandai "INI KAMU" di papan. Ketuk lagi untuk menyembunyikan.' : 'Jaga layarmu dari intipan!';
 
   const moves = s.legalMoves || [];
@@ -856,6 +864,8 @@ function renderOverlay() {
     who.append(el('span', `place p${Math.min(st.placement, 4)}`, String(st.placement)));
     if (c) { const im = el('img', 'mini-avatar'); im.src = getPortrait(c.id); im.alt = `Foto ${c.name}`; who.append(im); }
     const nm = el('span', 'pn-wrap'); nm.append(el('span', 'pn', p.name), el('small', 'pid', c ? c.name : '?')); who.append(nm);
+    const sec = s.secrets && s.secrets[p.id];
+    if (sec && !p.bot) nm.append(el('small', 'rv-secret ' + (sec.done ? 'ok' : 'no'), `${sec.done ? '✓' : '✗'} Misi: ${sec.text}`));
     li.append(who);
     if (p.bot) li.append(el('span', 'tag bot-tag', 'bot'));
     else if (st.practice) li.append(el('span', 'tag', 'latihan'));

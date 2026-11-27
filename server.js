@@ -8,6 +8,7 @@ const { nanoid } = require('nanoid');
 const G = require('./game');
 const LAYOUT = require('./layout');
 const SCORING = require('./scoring');
+const MISSIONS = require('./missions');
 const { createStore, pub, withRanks, StoreError, validateUsername } = require('./store');
 
 const store = createStore();
@@ -46,7 +47,7 @@ app.use('/vendor/fonts', express.static('node_modules/@fontsource', { maxAge: '3
 app.use('/vendor/three', express.static('node_modules/three', { maxAge: '7d' }));
 app.use('/vendor/supabase', express.static('node_modules/@supabase/supabase-js/dist/umd', { maxAge: '7d' }));
 app.get('/health', (_, res) => res.send('ok'));
-app.get('/config', (_, res) => res.json({ ...store.clientConfig(), scoring: { rules: SCORING.RULES, tiers: SCORING.TIERS, table: SCORING.table(G.MIN_PLAYERS, G.MAX_PLAYERS) } }));
+app.get('/config', (_, res) => res.json({ ...store.clientConfig(), missions: MISSIONS.catalog(), scoring: { rules: SCORING.RULES, tiers: SCORING.TIERS, table: SCORING.table(G.MIN_PLAYERS, G.MAX_PLAYERS) } }));
 
 // ---- Papan peringkat (cache singkat agar hemat kuota free-tier) ----
 let lbCache = null;
@@ -66,7 +67,7 @@ app.get('/api/player/:publicId', async (req, res) => {
   try {
     const p = await store.byPublicId(id);
     if (!p) return res.status(404).json({ error: 'Pemain tidak ditemukan' });
-    res.json({ profile: pub(p), rank: await store.rank(p.user_id), recent: await store.recent(p.user_id) });
+    res.json({ profile: pub(p), rank: await store.rank(p.user_id), recent: await store.recent(p.user_id), unlocked: Object.keys(p.progress?.done || {}) });
   } catch (e) { console.error('player', e.message); res.status(503).json({ error: 'Data pemain sedang tidak tersedia' }); }
 });
 app.get('/meta', (_, res) => res.json({ rooms: G.ROOMS, roomLabel: G.ROOM_LABEL, roomColorName: G.ROOM_COLOR_NAME, adj: G.ADJ, characters: G.CHARACTERS, layout: LAYOUT.forClient(), minPlayers: G.MIN_PLAYERS, maxPlayers: G.MAX_PLAYERS }));
@@ -113,18 +114,33 @@ async function awardRoom(room) {
   const n = g.players.length;
   const ranked = g.standings
     .map(s => ({ ...s, p: G.player(g, s.id) }))
-    .filter(s => s.p && s.p.uid);
+    .filter(s => s.p && s.p.uid && !s.practice); // latihan lawan bot tidak dicatat
   if (!ranked.length) return;
   try {
     await store.awardMatch(room.code, n, ranked.map(s => ({ uid: s.p.uid, placement: s.placement, points: s.points, unmasks: s.unmasks })));
     lbCache = null;
     for (const s of ranked) {
+      // misi & gelar
+      let missions = null;
+      try {
+        const before = await store.getProfile(s.p.uid);
+        const st = (g.stat && g.stat[s.p.id]) || {};
+        const sec = G.secretStatus(g, s.p, true);
+        const x = { won: g.winnerId === s.p.id, placement: s.placement, players: n, unmasks: s.unmasks || 0, cards: st.cards || 0,
+          accuseHits: st.accuseHits || 0, selfMoves: st.selfMoves || 0, aloneTurns: st.aloneTurns || 0, midnight: !!g.midnight, secretDone: !!(sec && sec.done) };
+        // statistik profil SEBELUM pesta ini dipakai sebagai titik awal (awardMatch sudah menambah 1 pesta)
+        const base = { games: Math.max(0, (before?.games || 1) - 1), wins: Math.max(0, (before?.wins || 0) - (x.won ? 1 : 0)), unmasks: Math.max(0, (before?.unmasks || 0) - x.unmasks) };
+        const r = MISSIONS.apply(before?.progress, x, base);
+        await store.saveProgress(s.p.uid, r.progress);
+        missions = { secret: sec, unlocked: r.unlocked.map(MISSIONS.titleOf) };
+      } catch (e) { console.error('missions', e.message); }
       const prof = await store.getProfile(s.p.uid);
       const total = Number(prof?.points) || 0;
       const reward = {
         placement: s.placement, points: s.points, total,
         tierBefore: SCORING.tierOf(total - s.points), tierAfter: SCORING.tierOf(total),
         rank: await store.rank(s.p.uid).catch(() => null),
+        missions,
       };
       for (const sock of userSockets(s.p.uid)) { sock.data.profile = prof; sock.emit('reward', reward); sock.emit('me', mePayload(sock)); }
     }
@@ -153,7 +169,7 @@ function cleanName(n) {
 function sync(room) {
   const g = room.game;
   const view = G.publicView(g);
-  const extra = Object.fromEntries(g.players.map(p => [p.id, { publicId: p.publicId || null, avatarUrl: p.avatarUrl || null, tier: p.uid ? p.tier : null, guest: !p.uid }]));
+  const extra = Object.fromEntries(g.players.map(p => [p.id, { publicId: p.publicId || null, avatarUrl: p.avatarUrl || null, tier: p.uid ? p.tier : null, title: p.uid ? p.title || null : null, guest: !p.uid }]));
   view.players = view.players.map(p => ({ ...p, ...extra[p.id] }));
   const pub = { ...view, code: room.code, hostId: room.hostId, visibility: room.visibility, tutorial: !!room.tutorial, turnEndsAt: room.turnEndsAt, serverNow: Date.now() };
   io.to(room.code).emit('state', pub);
@@ -274,7 +290,7 @@ io.on('connection', socket => {
   const newPlayer = (name) => {
     const prof = socket.data.profile;
     const p = { id: nanoid(10), name, connected: true, alive: true, cards: [], charId: null };
-    if (prof) Object.assign(p, { name: prof.username, uid: socket.data.user.uid, publicId: prof.public_id, avatarUrl: prof.avatar_url || null, tier: SCORING.tierOf(Number(prof.points) || 0) });
+    if (prof) Object.assign(p, { name: prof.username, uid: socket.data.user.uid, publicId: prof.public_id, avatarUrl: prof.avatar_url || null, tier: SCORING.tierOf(Number(prof.points) || 0), title: pub(prof).title });
     return p;
   };
   const displayName = (name) => socket.data.profile ? socket.data.profile.username : cleanName(name);
@@ -313,6 +329,27 @@ io.on('connection', socket => {
       if (e instanceof StoreError) return reply(cb, { error: e.message, code: e.code });
       console.error('profile_save', e.message); reply(cb, { error: 'Gagal menyimpan profil' });
     }
+  });
+  socket.on('set_title', async ({ key } = {}, cb) => {
+    const user = socket.data.user;
+    if (!user || !socket.data.profile) return reply(cb, { error: 'Masuk dulu untuk memakai gelar' });
+    try {
+      const prof = await store.getProfile(user.uid);
+      if (key && !prof?.progress?.done?.[key]) return reply(cb, { error: 'Gelar ini belum terbuka' });
+      await store.setTitle(user.uid, key || null);
+      socket.data.profile = await store.getProfile(user.uid);
+      lbCache = null;
+      // perbarui gelar di room yang sedang diikuti
+      const room = rooms.get(socket.data.code), p = room && G.player(room.game, socket.data.playerId);
+      if (p) { p.title = pub(socket.data.profile).title; sync(room); }
+      reply(cb, mePayload(socket));
+    } catch (e) { console.error('set_title', e.message); reply(cb, { error: 'Gagal memakai gelar' }); }
+  });
+  socket.on('my_missions', async (_ = {}, cb) => {
+    const user = socket.data.user;
+    if (!user || !socket.data.profile) return reply(cb, { error: 'Belum masuk' });
+    try { const prof = await store.getProfile(user.uid); reply(cb, { missions: MISSIONS.view(prof?.progress), title: prof?.title || null }); }
+    catch (e) { reply(cb, { error: 'Gagal memuat misi' }); }
   });
   socket.on('my_stats', async (_ = {}, cb) => {
     const user = socket.data.user;

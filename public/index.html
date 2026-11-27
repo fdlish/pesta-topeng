@@ -202,7 +202,8 @@
     <div class="sheet">
       <button id="identityBtn" class="identity" aria-pressed="false">
         <span class="id-avatar" aria-hidden="true"><img id="idAvatar" alt=""><span class="mask"><svg class="mask-svg" viewBox="0 0 64 40" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M2 7C10 1 22 2 32 10C42 2 54 1 62 7C64 22 56 34 44 34C38 34 35 27 32 27C29 27 26 34 20 34C8 34 0 22 2 7ZM12 17C14 13 21 13 25 17C21 21 15 21 12 17ZM39 17C43 13 50 13 52 17C49 21 43 21 39 17Z"/></svg></span></span>
-        <span class="id-body"><span id="idName" class="id-name"></span><span id="identityText" class="id-bio">Ketuk untuk lihat identitasmu</span><span id="idHint" class="id-hint"></span></span>
+        <span class="id-body"><span id="idName" class="id-name"></span><span id="identityText" class="id-bio">Ketuk untuk lihat identitasmu</span><span id="idHint" class="id-hint"></span>
+            <span id="idSecret" class="id-secret hidden"></span></span>
       </button>
       <div id="actionPanel" class="action-panel"></div>
     </div>
@@ -228,6 +229,13 @@
 
   <!-- GAME OVER -->
 
+  <!-- PROFIL PEMAIN LAIN -->
+  <div id="playerModal" class="modal hidden" role="dialog" aria-modal="true" aria-label="Profil pemain">
+    <div class="modal-card player-card">
+      <button id="playerClose" class="icon-btn sm player-close" type="button" aria-label="Tutup profil"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      <div id="playerBody"></div>
+    </div>
+  </div>
   <!-- PENGATURAN -->
   <div id="settingsModal" class="modal settings-modal hidden" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
     <div class="modal-card settings-card">
