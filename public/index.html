@@ -26,7 +26,7 @@
   <section id="home" class="screen">
     <header class="topbar">
       <a class="brand" href="/" aria-label="Pesta Topeng, beranda"><svg class="mask-svg" viewBox="0 0 64 40" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M2 7C10 1 22 2 32 10C42 2 54 1 62 7C64 22 56 34 44 34C38 34 35 27 32 27C29 27 26 34 20 34C8 34 0 22 2 7ZM12 17C14 13 21 13 25 17C21 21 15 21 12 17ZM39 17C43 13 50 13 52 17C49 21 43 21 39 17Z"/></svg></a>
-      <div id="accountArea" class="account-area"></div>
+      <div class="topbar-right"><button class="icon-btn settings-open" type="button" aria-label="Pengaturan" title="Pengaturan"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></button><div id="accountArea" class="account-area"></div></div>
     </header>
 
     <div class="home-grid">
@@ -148,6 +148,7 @@
 
   <!-- LOBBY -->
   <section id="lobby" class="screen hidden">
+    <button class="icon-btn settings-open lobby-gear" type="button" aria-label="Pengaturan" title="Pengaturan"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></button>
     <p class="muted center">Kode room</p>
     <div id="lobbyCode" class="big-code"></div>
     <div id="visRow" class="vis-row"></div>
@@ -172,6 +173,7 @@
         <button id="sfxBtn" class="icon-btn" aria-label="Efek suara" aria-pressed="true" title="Efek suara"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path class="wave" d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/><path class="slash" d="M3 3l18 18"/></svg></button>
         <button id="camBtn" class="icon-btn" aria-label="Atur ulang kamera" title="Atur ulang kamera"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></button>
         <button id="logBtn" class="icon-btn" aria-label="Catatan pesta" title="Catatan pesta"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></button>
+        <button id="gearBtn" class="icon-btn settings-open" aria-label="Pengaturan" title="Pengaturan"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></button>
         </div>
         <button id="exitBtn" class="icon-btn exit-btn" aria-label="Keluar dari pesta" title="Keluar dari pesta"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/></svg></button>
       </div>
@@ -203,9 +205,7 @@
     </div>
     <aside id="drawer" class="drawer hidden">
       <div class="drawer-head"><b>Menu &amp; catatan</b><button id="drawerClose" class="icon-btn" aria-label="Tutup"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
-      <label class="setting"><input type="checkbox" id="reduceMotion"><span>Kurangi animasi</span><small>Matikan sinematik, lompatan bidak & putaran dadu</small></label>
-      <button id="drawerMusic" class="setting-btn" type="button"><span>Musik latar</span><b id="drawerMusicState">Nyala</b></button>
-      <button id="drawerVoice" class="setting-btn" type="button"><span>Suara narator</span><b id="drawerVoiceState">Nyala</b></button>
+      <button class="setting-btn settings-open" type="button"><span>Pengaturan suara, grafis &amp; papan</span><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></button>
       <button id="drawerExit" class="btn danger drawer-exit" type="button"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/></svg><span>Keluar dari pesta</span></button>
       <ul id="gamePlayers" class="plist compact"></ul>
       <ol id="log" class="log"></ol>
@@ -224,6 +224,40 @@
   </section>
 
   <!-- GAME OVER -->
+
+  <!-- PENGATURAN -->
+  <div id="settingsModal" class="modal settings-modal hidden" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+    <div class="modal-card settings-card">
+      <div class="set-head"><h2 id="settingsTitle">Pengaturan</h2><button id="settingsClose" class="icon-btn sm" type="button" aria-label="Tutup pengaturan"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+      <div class="set-tabs" role="tablist" aria-label="Kategori pengaturan">
+        <button role="tab" id="st-suara" aria-controls="sp-suara" aria-selected="true">Suara</button>
+        <button role="tab" id="st-grafis" aria-controls="sp-grafis" aria-selected="false" tabindex="-1">Grafis</button>
+        <button role="tab" id="st-papan" aria-controls="sp-papan" aria-selected="false" tabindex="-1">Papan</button>
+      </div>
+      <div id="sp-suara" class="set-panel" role="tabpanel" aria-labelledby="st-suara">
+        <div class="set-row"><label for="set-master"><span>Volume utama</span><small>Semua bunyi di pesta</small></label><div class="set-slider"><input type="range" id="set-master" data-k="master" min="0" max="100" step="5"><output for="set-master"></output></div></div>
+        <div class="set-row"><label for="set-music"><span>Musik latar</span><small>Musik gamelan pengiring</small></label><div class="set-slider"><input type="range" id="set-music" data-k="music" min="0" max="100" step="5"><output for="set-music"></output></div></div>
+        <div class="set-row"><label for="set-sfx"><span>Efek suara</span><small>Dadu, langkah, kartu</small></label><div class="set-slider"><input type="range" id="set-sfx" data-k="sfx" min="0" max="100" step="5"><output for="set-sfx"></output></div></div>
+        <div class="set-row"><label for="set-voice"><span>Narator</span><small>Suara pembawa acara</small></label><div class="set-slider"><input type="range" id="set-voice" data-k="voice" min="0" max="100" step="5"><output for="set-voice"></output></div></div>
+        <div class="set-row"><label for="set-vibrate"><span>Getar</span><small>Saat dadu hitam & topeng terbuka</small></label><button type="button" role="switch" id="set-vibrate" data-k="vibrate" class="switch" aria-checked="false"><span class="sr-only">Getar</span></button></div>
+      </div>
+      <div id="sp-grafis" class="set-panel hidden" role="tabpanel" aria-labelledby="st-grafis">
+        <div class="set-row col"><span id="qLabel">Kualitas grafis</span><small>Hemat menjaga HP tetap dingin dan baterai awet.</small>
+          <div class="set-seg" role="radiogroup" aria-labelledby="qLabel">
+            <button type="button" role="radio" data-q="hemat">Hemat</button><button type="button" role="radio" data-q="seimbang">Seimbang</button><button type="button" role="radio" data-q="tajam">Tajam</button>
+          </div></div>
+        <div class="set-row"><label for="set-brightness"><span>Kecerahan</span><small>Terang-gelapnya meja</small></label><div class="set-slider"><input type="range" id="set-brightness" data-k="brightness" min="70" max="130" step="5"><output for="set-brightness"></output></div></div>
+        <div class="set-row"><label for="set-reduceMotion"><span>Kurangi animasi</span><small>Tanpa sinematik, lompatan bidak & putaran dadu</small></label><button type="button" role="switch" id="set-reduceMotion" data-k="reduceMotion" class="switch" aria-checked="false"><span class="sr-only">Kurangi animasi</span></button></div>
+      </div>
+      <div id="sp-papan" class="set-panel hidden" role="tabpanel" aria-labelledby="st-papan">
+        <div class="set-row"><label for="set-cinematic"><span>Kamera ikuti gerakan lawan</span><small>Kamera mengikuti tamu yang digeser pemain lain</small></label><button type="button" role="switch" id="set-cinematic" data-k="cinematic" class="switch" aria-checked="false"><span class="sr-only">Kamera ikuti gerakan lawan</span></button></div>
+        <div class="set-row"><label for="set-unmaskCam"><span>Zoom saat topeng dibuka</span><small>Kamera mendekat ke bidak yang ketahuan</small></label><button type="button" role="switch" id="set-unmaskCam" data-k="unmaskCam" class="switch" aria-checked="false"><span class="sr-only">Zoom saat topeng dibuka</span></button></div>
+        <div class="set-row"><label for="set-spotMine"><span>Sorot bidakku</span><small>Kamera menyorot bidakmu saat kartu tamu dibuka</small></label><button type="button" role="switch" id="set-spotMine" data-k="spotMine" class="switch" aria-checked="false"><span class="sr-only">Sorot bidakku</span></button></div>
+        <div class="set-row"><label for="set-peekLabel"><span>Nama profesi saat bidak diketuk</span><small>Label kecil di atas kepala bidak</small></label><button type="button" role="switch" id="set-peekLabel" data-k="peekLabel" class="switch" aria-checked="false"><span class="sr-only">Nama profesi saat bidak diketuk</span></button></div>
+      </div>
+      <button id="settingsReset" class="link-btn set-reset" type="button">Kembalikan ke bawaan</button>
+    </div>
+  </div>
   <div id="noteSheet" class="overlay note-sheet hidden" role="dialog" aria-modal="true" aria-labelledby="noteTitle">
     <div class="card note-card">
       <div class="note-head"><div><p class="eyebrow">Catatan rahasia</p><h3 id="noteTitle"></h3></div><button id="noteClose" class="icon-btn sm" type="button" aria-label="Tutup"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>

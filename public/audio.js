@@ -10,16 +10,18 @@ const store = {
 };
 
 let ctx = null, master, musicBus, sfxBus, delay, noise;
+const vol = { master: 0.9, music: 0.6, sfx: 0.85, voice: 0.9 }; // diatur dari panel Pengaturan
+const musicLevel = () => 0.32 * vol.music / 0.6;
 const state = { music: store.get('pt-music', true), sfx: store.get('pt-sfx', true), voice: store.get('pt-voice', true), intensity: 0, playing: false };
 
 function build() {
   ctx = new (window.AudioContext || window.webkitAudioContext)();
   const comp = ctx.createDynamicsCompressor();
   comp.threshold.value = -14; comp.ratio.value = 3; comp.attack.value = 0.01; comp.release.value = 0.2;
-  master = ctx.createGain(); master.gain.value = 0.9;
+  master = ctx.createGain(); master.gain.value = vol.master;
   master.connect(comp).connect(ctx.destination);
-  musicBus = ctx.createGain(); musicBus.gain.value = state.music ? 0.32 : 0; musicBus.connect(master);
-  sfxBus = ctx.createGain(); sfxBus.gain.value = state.sfx ? 1 : 0; sfxBus.connect(master);
+  musicBus = ctx.createGain(); musicBus.gain.value = state.music ? musicLevel() : 0; musicBus.connect(master);
+  sfxBus = ctx.createGain(); sfxBus.gain.value = state.sfx ? vol.sfx : 0; sfxBus.connect(master);
   // gema lembut untuk melodi & lonceng
   delay = ctx.createDelay(1); delay.delayTime.value = 0.32;
   const fb = ctx.createGain(); fb.gain.value = 0.28;
@@ -200,28 +202,39 @@ export function setIntensity(v) { state.intensity = Math.max(0, Math.min(1, v));
 export function setMusic(on) {
   state.music = !!on; store.set('pt-music', state.music);
   if (ctx) {
-    musicBus.gain.setTargetAtTime(on ? 0.32 : 0, ctx.currentTime, 0.2);
+    musicBus.gain.setTargetAtTime(on ? musicLevel() : 0, ctx.currentTime, 0.2);
     if (on && !state.playing && ready()) startMusic();
     if (!on) setTimeout(() => { if (!state.music) stopMusic(); }, 600); // hemat baterai
   }
 }
-export function setSfx(on) { state.sfx = !!on; store.set('pt-sfx', state.sfx); if (ctx) sfxBus.gain.setTargetAtTime(on ? 1 : 0, ctx.currentTime, 0.05); }
+export function setSfx(on) { state.sfx = !!on; store.set('pt-sfx', state.sfx); if (ctx) sfxBus.gain.setTargetAtTime(on ? vol.sfx : 0, ctx.currentTime, 0.05); }
+// volume 0–100 per jalur; narator lewat sfxBus jadi dikompensasi agar slider narator independen
+export function setVolume(kind, v100) {
+  vol[kind] = Math.max(0, Math.min(1, v100 / 100));
+  if (!ctx) return;
+  const t = ctx.currentTime;
+  if (kind === 'master') master.gain.setTargetAtTime(vol.master, t, 0.05);
+  if (kind === 'music' && state.music) musicBus.gain.setTargetAtTime(musicLevel(), t, 0.1);
+  if ((kind === 'sfx' || kind === 'voice') && state.sfx) sfxBus.gain.setTargetAtTime(vol.sfx, t, 0.05);
+  if (voiceBus && state.voice) voiceBus.gain.setTargetAtTime(voiceGain(), t, 0.05);
+}
 export const isMusicOn = () => state.music;
 export const isSfxOn = () => state.sfx;
 
 // ================= narator (voice over) =================
 // Klip suara narator misterius (public/vo/*.mp3). Lewat sfxBus: tombol efek suara ikut membisukannya.
 // Antrean: kalimat tidak saling tumpuk; kalimat basi (terlalu lama mengantre) dibuang.
+const voiceGain = () => 1.15 * vol.voice / Math.max(0.05, vol.sfx); // narator lewat sfxBus → dikompensasi
 let voiceBus = null, vPlaying = null, vBusy = false;
 const vBuf = new Map(), vQueue = [];
-function vbus() { if (!voiceBus) { voiceBus = ctx.createGain(); voiceBus.gain.value = state.voice ? 1.15 : 0; voiceBus.connect(sfxBus); } return voiceBus; }
+function vbus() { if (!voiceBus) { voiceBus = ctx.createGain(); voiceBus.gain.value = state.voice ? voiceGain() : 0; voiceBus.connect(sfxBus); } return voiceBus; }
 function loadVo(name) {
   if (!vBuf.has(name)) vBuf.set(name, fetch(`/vo/${name}.mp3`).then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
     .then(a => new Promise((res, rej) => ctx.decodeAudioData(a, res, rej))).catch(() => null));
   return vBuf.get(name);
 }
 export function preloadVoice(names) { if (ctx && state.voice) names.forEach(loadVo); }
-function duck(on) { if (ctx && state.music) musicBus.gain.setTargetAtTime(on ? 0.1 : 0.32, ctx.currentTime, on ? 0.08 : 0.5); }
+function duck(on) { if (ctx && state.music) musicBus.gain.setTargetAtTime(on ? musicLevel() * 0.3 : musicLevel(), ctx.currentTime, on ? 0.08 : 0.5); }
 async function pump() {
   if (vBusy || !vQueue.length) return;
   const item = vQueue.shift();
@@ -253,7 +266,7 @@ export function say(lines, { prio = 1, ttl = 4500 } = {}) {
 }
 export function setVoice(on) {
   state.voice = !!on; store.set('pt-voice', state.voice);
-  if (voiceBus) voiceBus.gain.setTargetAtTime(on ? 1.15 : 0, ctx.currentTime, 0.05);
+  if (voiceBus) voiceBus.gain.setTargetAtTime(on ? voiceGain() : 0, ctx.currentTime, 0.05);
   if (!on) { vQueue.length = 0; if (vPlaying) { vPlaying.item.cancelled = true; try { vPlaying.src.stop(); } catch {} } }
 }
 export const isVoiceOn = () => state.voice;

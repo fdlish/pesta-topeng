@@ -99,7 +99,7 @@ export class Board3D {
 
     // lampu: satu lampu meja hangat yang menyorot papan + isi dingin yang tipis
     s.add(new THREE.HemisphereLight('#9fb4d8', '#20140a', 0.35));
-    const lamp = new THREE.SpotLight('#ffe3b3', 3.2, 0, 0.78, 0.6, 0);
+    const lamp = this.lamp = new THREE.SpotLight('#ffe3b3', 3.2, 0, 0.78, 0.6, 0);
     lamp.position.set(-2.5, 17, 7); lamp.target.position.set(0, 0, 0.6);
     lamp.castShadow = true; lamp.shadow.mapSize.set(1536, 1536); lamp.shadow.bias = -0.0004; lamp.shadow.normalBias = 0.02;
     lamp.shadow.camera.near = 8; lamp.shadow.camera.far = 30;
@@ -590,7 +590,7 @@ export class Board3D {
   // Kamera meluncur ke karaktermu, menahan sebentar, lalu kembali.
   spotlightMine(id) {
     const f = this.figures.get(id);
-    if (!f || !f.group.visible || REDUCED) return;
+    if (!f || !f.group.visible || REDUCED || !this.optOn('spotMine')) return;
     if (this.rolling || this.cineF || (this.drag && this.drag.started)) return;
     if (!this.camMode) this.camSaved = { pos: this.camera.position.clone(), target: this.controls.target.clone() };
     this.camFrom = null; this.camMode = 'spot'; this.spotF = f; this.spotT = 0; this.controls.enabled = false;
@@ -716,7 +716,7 @@ export class Board3D {
   }
   // Ketuk bidak mana pun → label nama profesinya muncul di atas kepala selama ±2,5 detik.
   peekFigure(id, note) {
-    if (!this.figures.has(id)) return;
+    if (!this.figures.has(id) || !this.optOn('peekLabel')) return;
     this.peek = { id, until: performance.now() + 3000 };
     if (!this.peekEl) { this.peekEl = document.createElement('div'); this.peekEl.className = 'peek-label'; this.peekEl.setAttribute('role', 'status'); this.container.append(this.peekEl); }
     const c = this.meta.characters.find(x => x.id === id);
@@ -795,7 +795,7 @@ export class Board3D {
         continue;
       }
       if (sameRoom || f.dropped) { this.slide(f, from, target); f.dropped = false; continue; } // koreksi kecil: geser halus
-      if (ev && ev.type === 'move' && ev.charId === id && ev.by !== this.myId && !REDUCED) { this.cinematic(f, from, target, ev); continue; } // pemain lain melihat sinematik
+      if (ev && ev.type === 'move' && ev.charId === id && ev.by !== this.myId && !REDUCED && this.optOn('cinematic')) { this.cinematic(f, from, target, ev); continue; } // pemain lain melihat sinematik
       this.hop(f, from, target);
     }
   }
@@ -862,6 +862,18 @@ export class Board3D {
       ring.scale.setScalar(1 + k * (big ? 9 : 5)); ring.material.opacity = 0.9 * (1 - k);
     }, () => { for (const p of parts) { this.scene.remove(p.m); p.m.material.dispose(); } geo.dispose(); this.scene.remove(ring); ring.geometry.dispose(); ring.material.dispose(); });
   }
+  // Pengaturan dari panel: kualitas, kecerahan, dan perilaku kamera/label
+  setOptions(o) {
+    this.opt = { ...(this.opt || {}), ...o };
+    const q = this.opt.quality || 'seimbang';
+    const pr = q === 'hemat' ? 1 : q === 'tajam' ? Math.min(devicePixelRatio, 2) : Math.min(devicePixelRatio, 1.5);
+    if (this.renderer.getPixelRatio() !== pr) { this.renderer.setPixelRatio(pr); this.resize(); }
+    if (this.lamp) this.lamp.castShadow = q !== 'hemat';
+    this.renderer.toneMappingExposure = (this.opt.brightness || 100) / 100;
+    this.dirty = true;
+  }
+  optOn(k) { return !this.opt || this.opt[k] !== false; }
+
   // Kapan animasi buka topeng untuk bidak ini selesai (ms, performance.now). undefined = belum dimulai.
   unmaskEnd(id) { return this.unmaskEnds && this.unmaskEnds.get(id); }
 
@@ -876,7 +888,7 @@ export class Board3D {
     const total = T.zoom + T.shake + T.grey + T.fall + T.hold;
     this.unmaskEnds.set(id, performance.now() + total * 1000);
     // kamera: sorot dekat bidak selama seluruh animasi (kecuali sedang ada sinematik lain)
-    if (!this.cineF && this.camMode !== 'follow') {
+    if (this.optOn('unmaskCam') && !this.cineF && this.camMode !== 'follow') {
       if (!this.camMode) this.camSaved = { pos: this.camera.position.clone(), target: this.controls.target.clone() };
       this.camFrom = null; this.camMode = 'spot'; this.spotF = f; this.spotT = 0; this.spotDur = total + 0.5; this.spotZoom = 0.28; this.controls.enabled = false;
     }

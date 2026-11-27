@@ -3,10 +3,11 @@ import * as A from './audio.js';
 import { initPortraits, getPortrait, warmAll } from './portraits.js';
 import * as Auth from './auth.js';
 import * as Home from './home.js';
+import * as Settings from './settings.js';
 
 const $ = s => document.querySelector(s);
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
-const vibrate = p => { try { navigator.vibrate && navigator.vibrate(p); } catch {} };
+const vibrate = p => { try { Settings.get('vibrate') && navigator.vibrate && navigator.vibrate(p); } catch {} };
 
 const socket = io({ autoConnect: false });
 const store = {
@@ -404,6 +405,7 @@ function initBoard() {
       renderGame(); processFx();
     },
   });
+  board.setOptions(boardOpts());
 }
 function rollDice() {
   if (!state || state.turnPlayerId !== me.id || state.step !== 'ROLL' || (board && board.rolling)) return;
@@ -437,16 +439,48 @@ $('#exitDialog').addEventListener('keydown', e => {
   if (e.key === 'Tab') { const a = $('#exitConfirm'), b = $('#exitCancel'); if (e.shiftKey && document.activeElement === a) { e.preventDefault(); b.focus(); } else if (!e.shiftKey && document.activeElement === b) { e.preventDefault(); a.focus(); } }
 });
 $('#exitDialog').addEventListener('click', e => { if (e.target.id === 'exitDialog') closeExit(); });
-$('#drawerMusic').onclick = () => $('#musicBtn').click();
-$('#drawerVoice').onclick = () => { A.setVoice(!A.isVoiceOn()); syncAudioBtns(); toast(A.isVoiceOn() ? 'Narator menyala' : 'Narator dimatikan'); if (A.isVoiceOn()) A.preloadVoice(voAll()); };
 $('#drawerClose').onclick = () => $('#drawer').classList.add('hidden');
 
-// tombol "Kurangi animasi" (pilihan pemain, disimpan di perangkat)
-const rmToggle = $('#reduceMotion');
+// ---------- Pengaturan (suara, grafis, papan) ----------
 const applyRM = on => { document.body.classList.toggle('reduce-motion', on); setReducedMotion(on); };
-try { rmToggle.checked = localStorage.getItem('pt-reduce-motion') === '1'; } catch {}
-applyRM(rmToggle.checked);
-rmToggle.addEventListener('change', () => { try { localStorage.setItem('pt-reduce-motion', rmToggle.checked ? '1' : '0'); } catch {} applyRM(rmToggle.checked); });
+const BOARD_KEYS = ['quality', 'brightness', 'cinematic', 'unmaskCam', 'spotMine', 'peekLabel'];
+const boardOpts = () => Object.fromEntries(BOARD_KEYS.map(k => [k, Settings.get(k)]));
+Settings.onChange((k, v, all) => {
+  for (const kind of ['master', 'music', 'sfx', 'voice']) if (!k || k === kind) A.setVolume(kind, all[kind]);
+  if (!k || k === 'reduceMotion') applyRM(all.reduceMotion);
+  if (board && (!k || BOARD_KEYS.includes(k))) board.setOptions(boardOpts());
+  syncSettingsUI();
+});
+function syncSettingsUI() {
+  const all = Settings.get();
+  document.querySelectorAll('#settingsModal input[type=range]').forEach(r => {
+    r.value = all[r.dataset.k]; r.style.setProperty('--p', `${(r.value - r.min) / (r.max - r.min) * 100}%`);
+    r.nextElementSibling.textContent = `${r.value}%`;
+  });
+  document.querySelectorAll('#settingsModal .switch').forEach(b => b.setAttribute('aria-checked', String(!!all[b.dataset.k])));
+  document.querySelectorAll('#settingsModal [data-q]').forEach(b => { const on = b.dataset.q === all.quality; b.setAttribute('aria-checked', String(on)); b.tabIndex = on ? 0 : -1; });
+}
+(() => {
+  const modal = $('#settingsModal'); let lastFocus = null;
+  const open = () => { lastFocus = document.activeElement; syncSettingsUI(); modal.classList.remove('hidden'); $('#settingsClose').focus(); };
+  const close = () => { modal.classList.add('hidden'); lastFocus && lastFocus.focus && lastFocus.focus(); };
+  document.querySelectorAll('.settings-open').forEach(b => b.addEventListener('click', () => { $('#drawer').classList.add('hidden'); open(); }));
+  $('#settingsClose').onclick = close;
+  modal.addEventListener('click', e => { if (e.target === modal) close(); });
+  modal.addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); close(); } });
+  // tab kategori (panah kiri/kanan berpindah tab)
+  const tabs = [...modal.querySelectorAll('[role=tab]')];
+  const pick = t => { tabs.forEach(x => { const on = x === t; x.setAttribute('aria-selected', String(on)); x.tabIndex = on ? 0 : -1; $('#' + x.getAttribute('aria-controls')).classList.toggle('hidden', !on); }); };
+  tabs.forEach((t, i) => { t.onclick = () => pick(t); t.onkeydown = e => { const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0; if (d) { const n = tabs[(i + d + tabs.length) % tabs.length]; pick(n); n.focus(); } }; });
+  // slider: berubah langsung, contoh bunyi saat dilepas
+  modal.querySelectorAll('input[type=range]').forEach(r => {
+    r.addEventListener('input', () => Settings.set(r.dataset.k, Number(r.value)));
+    r.addEventListener('change', () => { const k = r.dataset.k; if (k === 'voice') A.say('turn', { prio: 2 }); else if (k !== 'music' && k !== 'brightness') A.sfx.click && A.sfx.click(); });
+  });
+  modal.querySelectorAll('.switch').forEach(b => b.onclick = () => { Settings.set(b.dataset.k, !Settings.get(b.dataset.k)); if (b.dataset.k === 'vibrate' && Settings.get('vibrate')) vibrate(40); });
+  modal.querySelectorAll('[data-q]').forEach(b => b.onclick = () => Settings.set('quality', b.dataset.q));
+  $('#settingsReset').onclick = () => { Settings.reset(); toast('Pengaturan kembali ke bawaan'); };
+})();
 
 // ---------- catatan tersangka (privat, di perangkat ini) ----------
 let notes = {};
