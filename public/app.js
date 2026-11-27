@@ -166,9 +166,16 @@ socket.on('state', s => {
   // event dramatis (buka topeng / kartu) — antrikan, tampilkan setelah dadu berhenti
   if (s.lastEvent && s.lastEvent.id !== seenEventId) {
     if (seenEventId !== null && ['eliminated', 'killed', 'left'].includes(s.lastEvent.type)) fxQueue.push(s.lastEvent);
+    if (seenEventId !== null && s.lastEvent.type === 'accuse_fail') accuseFailFx(s.lastEvent);
+    if (seenEventId !== null && s.lastEvent.type === 'eliminated' && s.lastEvent.accused) { A.say('accuse', { prio: 2, ttl: 6000 }); A.sfx.unmask && A.sfx.unmask(); }
     if (seenEventId !== null && s.lastEvent.type === 'forfeit' && s.lastEvent.by !== me?.id) { toast(`${pname(s.lastEvent.by)} keluar dari pesta`); A.sfx.poof && A.sfx.poof(); A.say('forfeit', { ttl: 8000 }); }
     seenEventId = s.lastEvent.id;
   }
+  if (s.phase === 'PLAYING' && s.midnight && prev && prev.phase === 'PLAYING' && !prev.midnight) {
+    setTimeout(() => { banner('TENGAH MALAM', 'Lampu meredup. Dadu hitam kini lebih sering muncul.'); A.say('midnight', { prio: 2, ttl: 9000 }); vibrate([60, 80, 60]); }, 900);
+  }
+  if (board) board.setMidnight(s.phase === 'PLAYING' && s.midnight);
+  document.body.classList.toggle('midnight', s.phase === 'PLAYING' && !!s.midnight);
   const aliveN = s.players.filter(p => p.alive).length;
   if (s.phase === 'PLAYING' && prev && prev.phase === 'PLAYING' && aliveN === 2 && prev.players.filter(p => p.alive).length > 2) A.say('last_two', { ttl: 15000 });
   A.setIntensity(s.phase === 'PLAYING' && aliveN <= 2 ? 1 : 0);
@@ -182,7 +189,7 @@ setTimeout(() => { if (!socket.connected) $('#conn').classList.remove('hidden');
 // ---------- render ----------
 // ---------- lempar 2 dadu: urutan giliran ----------
 let voTimerKey = null;
-const VO_BASE = ['order', 'tie', 'order_done', 'start', 'turn', 'black', 'unmask', 'guest', 'card', 'forfeit', 'last_two', 'timer', 'you_out', 'gameover', 'win', 'i-sumatera', 'i-kalimantan', 'i-jawa', 'i-sulawesi', 'i-papua'];
+const VO_BASE = ['midnight', 'accuse', 'accuse_ok', 'accuse_fail', 'order', 'tie', 'order_done', 'start', 'turn', 'black', 'unmask', 'guest', 'card', 'forfeit', 'last_two', 'timer', 'you_out', 'gameover', 'win', 'i-sumatera', 'i-kalimantan', 'i-jawa', 'i-sulawesi', 'i-papua'];
 const voAll = () => VO_BASE.concat((META ? META.characters : []).map(c => `c-${c.id}`));
 let orderSeen = {}, orderDoneShown = false, orderHideT = null, myOrderRolling = false, orderFinishing = false;
 const PIPS = { 1: [[1, 1]], 2: [[0, 0], [2, 2]], 3: [[0, 0], [1, 1], [2, 2]], 4: [[0, 0], [2, 0], [0, 2], [2, 2]], 5: [[0, 0], [2, 0], [1, 1], [0, 2], [2, 2]], 6: [[0, 0], [2, 0], [0, 1], [2, 1], [0, 2], [2, 2]] };
@@ -317,6 +324,7 @@ function renderLobby() {
   ul.replaceChildren(...state.players.map(p => { const li = playerItem(p, { removable: isHost }); li.dataset.id = p.id; if (!known.has(p.id)) li.classList.add('pop'); return li; }));
   for (let i = state.players.length; i < Math.max(META.minPlayers, state.players.length); i++) ul.append(el('li', 'slot', 'Kursi kosong'));
   renderBotRow(isHost);
+  renderRulesRow(isHost);
   const humans = state.players.filter(p => !p.bot).length, bots = state.players.length - humans;
   renderVisRow(isHost);
   $('#startBtn').classList.toggle('hidden', !isHost);
@@ -379,6 +387,7 @@ function initBoard() {
       }
       const guessBy = Object.keys(notes).find(pid => notes[pid] === id && state.players.some(p => p.id === pid && p.alive));
       board.peekFigure(id, guessBy ? `tebakanmu: ${pname(guessBy)}` : null); A.sfx.hover && A.sfx.hover(); // label profesi muncul di atas bidak
+      openMarkBar(id);
     },
     onDragStart(id) { A.sfx.pick(); vibrate(15); if (selected !== id) { selected = id; renderGame(); } },
     onDrop(id, room, spot) { A.sfx.land(); vibrate(25); emit('move', { charId: id, to: room, spot }); selected = null; renderGame(); },
@@ -517,6 +526,8 @@ const COACH = [
   ['roll', s => s.phase === 'PLAYING' && s.turnPlayerId === me.id && s.step === 'ROLL', 'Giliranmu! Lempar dadu. Dadu menunjuk <b>pulau</b> (5 sisi) atau <b>hitam</b> (2 sisi).'],
   ['move', s => s.phase === 'PLAYING' && s.turnPlayerId === me.id && s.step === 'MOVE', 'Geser <b>satu tamu mana saja</b> masuk ke / keluar dari pulau di dadu. Jaga tamumu agar tidak sendirian, tapi jangan terlalu sering menggesernya: lawan memperhatikan.'],
   ['black', s => s.phase === 'PLAYING' && s.turnPlayerId === me.id && s.step === 'BLACK', 'Dadu hitam! Ketuk tamu yang <b>sepulau dengan tamumu</b> untuk membuka topengnya, atau <b>buka kartu</b> untuk memulangkan tamu yang pasti tak bersalah.'],
+  ['accuse', s => s.phase === 'PLAYING' && s.turnPlayerId === me.id && s.step === 'ROLL' && s.rules?.accuse && !me.accused && s.turnNo >= 6, 'Yakin tahu identitas lawan? Pakai <b>Tuduh!</b> sebagai ganti melempar dadu. Hanya sekali per pesta, dan kalau salah, pulau tempat tamumu berada diumumkan.'],
+  ['midnight', s => s.phase === 'PLAYING' && s.midnight, 'Tengah malam! Mulai sekarang <b>dadu hitam lebih sering</b> keluar. Jauhkan tamumu dari pulau yang sepi.'],
   ['alone', s => s.phase === 'PLAYING' && priv.charId && s.figures[priv.charId] && Object.values(s.figures).filter(r => r === s.figures[priv.charId]).length === 1, 'Awas, tamumu <b>sendirian</b> di pulaunya! Kalau kamu dapat dadu hitam sekarang, topengmu langsung terbuka.'],
 ];
 let coachSeen = new Set(), coachCur = null;
@@ -531,6 +542,112 @@ function renderCoach() {
   box.classList.remove('hidden'); box.classList.remove('pop'); void box.offsetWidth; box.classList.add('pop');
 }
 $('#coachOk').onclick = () => { $('#coach').classList.add('hidden'); coachCur = null; renderCoach(); };
+
+// ---------- Tuduh! ----------
+const ICON_ACCUSE = '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2"/><path d="M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>';
+let accuse = { target: null, charId: null };
+function openAccuse() {
+  accuse = { target: null, charId: null };
+  const foes = state.players.filter(p => p.alive && p.id !== me.id);
+  if (foes.length === 1) accuse.target = foes[0].id;
+  renderAccuse(); $('#accuseSheet').classList.remove('hidden'); A.sfx.click && A.sfx.click();
+}
+function closeAccuse() { $('#accuseSheet').classList.add('hidden'); }
+function renderAccuse() {
+  const foes = state.players.filter(p => p.alive && p.id !== me.id);
+  if (accuse.target && notes[accuse.target] && !accuse.charId && state.figures[notes[accuse.target]]) accuse.charId = notes[accuse.target];
+  $('#accuseWho').replaceChildren(...foes.map(p => {
+    const b = el('button', 'acc-who' + (accuse.target === p.id ? ' on' : '')); b.type = 'button'; b.setAttribute('aria-pressed', String(accuse.target === p.id));
+    b.append(Home.avatar(p.name, p.avatarUrl), el('span', null, p.name));
+    b.onclick = () => { accuse.target = p.id; accuse.charId = notes[p.id] && state.figures[notes[p.id]] ? notes[p.id] : null; renderAccuse(); };
+    return b;
+  }));
+  const grid = $('#accuseGrid');
+  grid.classList.toggle('hidden', !accuse.target);
+  const onBoard = Object.keys(state.figures).filter(id => id !== priv.charId);
+  grid.replaceChildren(...META.characters.filter(c => onBoard.includes(c.id)).map(c => {
+    const b = el('button', 'note-opt' + (accuse.charId === c.id ? ' on' : '')); b.type = 'button';
+    const im = el('img'); im.src = getPortrait(c.id); im.alt = ''; b.append(im, el('span', null, c.name));
+    if (accuse.target && notes[accuse.target] === c.id) b.append(el('small', null, 'tebakanmu'));
+    b.onclick = () => { accuse.charId = c.id; A.sfx.pick && A.sfx.pick(); renderAccuse(); };
+    return b;
+  }));
+  const go = $('#accuseGo'), ok = accuse.target && accuse.charId;
+  go.disabled = !ok;
+  go.textContent = ok ? `Tuduh ${pname(accuse.target)} sebagai ${ch(accuse.charId).name}` : accuse.target ? 'Pilih tamu yang kamu curigai' : 'Pilih pemain yang mau dituduh';
+}
+$('#accuseClose').onclick = closeAccuse;
+$('#accuseSheet').addEventListener('click', e => { if (e.target.id === 'accuseSheet') closeAccuse(); });
+$('#accuseGo').onclick = () => {
+  const { target, charId } = accuse; if (!target || !charId) return;
+  $('#accuseGo').disabled = true;
+  emit('accuse', { target, charId }).then(r => { if (r && r.error) { toast(r.error); $('#accuseGo').disabled = false; } else closeAccuse(); });
+};
+function accuseFailFx(ev) {
+  const room = META.roomLabel[ev.room] || '?';
+  const mine = ev.by === me?.id;
+  A.say(['accuse', 'accuse_fail'], { prio: 2, ttl: 9000 });
+  A.sfx.error && A.sfx.error();
+  setTimeout(() => banner('TUDUHAN MELESET', mine ? `Bukan ${ch(ev.charId).name}. Semua kini tahu tamumu ada di ${room}!` : `${pname(ev.by)} salah menuduh ${pname(ev.target)}. Tamu ${pname(ev.by)} ada di ${room}.`), 300);
+  if (board && board.pulseRoom) board.pulseRoom(ev.room);
+}
+
+// ---------- pil tengah malam ----------
+function renderMidnightPill(s) {
+  const pill = $('#midnightPill');
+  const show = s.phase === 'PLAYING' && s.rules && s.rules.midnight;
+  pill.classList.toggle('hidden', !show);
+  if (!show) return;
+  const alive = Math.max(1, s.players.filter(p => p.alive).length);
+  const left = Math.max(0, Math.ceil((s.midnightAt - s.turnNo) / alive));
+  pill.classList.toggle('on', !!s.midnight);
+  pill.classList.toggle('soon', !s.midnight && left <= 1);
+  $('#midnightText').textContent = s.midnight ? 'Tengah malam: dadu hitam 3 dari 7' : left <= 1 ? 'Tengah malam sebentar lagi' : `Tengah malam dalam ${left} putaran`;
+}
+
+// ---------- aturan tambahan di lobby ----------
+function renderRulesRow(isHost) {
+  const box = $('#rulesRow'), r = state.rules || { accuse: true, midnight: true };
+  const k = `${isHost}:${r.accuse}:${r.midnight}`;
+  if (box.dataset.k === k) return; box.dataset.k = k;
+  box.replaceChildren(el('p', 'bot-row-title', 'Aturan tambahan'));
+  for (const [key, label, hint] of [['accuse', 'Tuduh!', 'Sekali per pesta, tebak identitas lawan. Salah = pulau tamumu diumumkan.'], ['midnight', 'Tengah malam', 'Setelah 5 putaran, lampu meredup & dadu hitam lebih sering.']]) {
+    const row = el('div', 'set-row');
+    const lab = el('div'); lab.append(el('span', 'rule-name', label), el('small', null, hint)); row.append(lab);
+    const sw = el('button', 'switch'); sw.type = 'button'; sw.setAttribute('role', 'switch'); sw.setAttribute('aria-checked', String(!!r[key])); sw.setAttribute('aria-label', label);
+    if (!isHost) { sw.disabled = true; sw.title = 'Hanya host yang bisa mengubah'; }
+    sw.onclick = () => emit('set_rules', { [key]: !r[key] }).then(x => x && x.error && toast(x.error));
+    row.append(sw); box.append(row);
+  }
+}
+
+// ---------- tandai bidak: "ini milik siapa?" (catatan rahasia dari papan) ----------
+let markT = null;
+function openMarkBar(charId) {
+  const bar = $('#markBar'), s = state;
+  if (!s || s.phase !== 'PLAYING' || charId === priv.charId || !s.figures[charId]) return;
+  const foes = s.players.filter(p => p.alive && p.id !== me.id);
+  if (!foes.length) return;
+  const owner = Object.keys(notes).find(pid => notes[pid] === charId);
+  $('#markTitle').textContent = `${ch(charId).name}: milik siapa?`;
+  const row = $('#markChips');
+  row.replaceChildren(...foes.map(p => {
+    const b = el('button', 'mark-chip' + (owner === p.id ? ' on' : '')); b.type = 'button'; b.textContent = p.name; b.setAttribute('aria-pressed', String(owner === p.id));
+    b.onclick = () => { for (const k of Object.keys(notes)) if (notes[k] === charId) delete notes[k]; notes[p.id] = charId; saveNotes(); A.sfx.pick && A.sfx.pick(); vibrate(15); closeMarkBar(); renderGame(); toast(`Ditandai: ${ch(charId).name} = ${p.name}?`); };
+    return b;
+  }));
+  if (owner) { const x = el('button', 'mark-chip clear'); x.type = 'button'; x.textContent = 'Hapus tanda'; x.onclick = () => { delete notes[owner]; saveNotes(); closeMarkBar(); renderGame(); }; row.append(x); }
+  bar.classList.remove('hidden');
+  clearTimeout(markT); markT = setTimeout(closeMarkBar, 7000);
+}
+function closeMarkBar() { clearTimeout(markT); $('#markBar').classList.add('hidden'); }
+$('#markClose').onclick = closeMarkBar;
+function syncGuessTags() {
+  if (!board || !state) return;
+  const map = {};
+  if (state.phase === 'PLAYING') for (const [pid, cid] of Object.entries(notes)) { const p = state.players.find(x => x.id === pid); if (p && p.alive && state.figures[cid]) map[cid] = p.name; }
+  board.setGuessTags(map);
+}
 
 // ---------- reaksi cepat ----------
 const REACT = { curiga: ['🤨', 'Curiga…'], waduh: ['😱', 'Waduh!'], sstt: ['🤫', 'Sstt…'], wkwk: ['😂', 'Wkwk'], bukan: ['🙅', 'Bukan aku!'], mantap: ['👏', 'Mantap'] };
@@ -638,8 +755,12 @@ function renderGame() {
   else if (!me.alive) msg.textContent = 'Kamu tersingkir. Tetap tonton, tapi jangan bocorkan identitas siapa pun!';
   else if (!myTurn) msg.textContent = s.step === 'ROLL' ? `${pname(s.turnPlayerId)} akan melempar dadu…` : s.step === 'MOVE' ? `${pname(s.turnPlayerId)} sedang memindahkan tamu…` : `${pname(s.turnPlayerId)} dapat HITAM dan sedang memutuskan…`;
   else if (s.step === 'ROLL') {
-    msg.textContent = 'Lempar dadu: ketuk tombol atau dadu di meja.';
-    const b = btnWithIcon('btn primary roll', ICON.dice, 'Lempar Dadu'); b.onclick = () => { b.disabled = true; rollDice(); }; ap.append(b);
+    const canAccuse = s.rules && s.rules.accuse && !me.accused;
+    msg.textContent = canAccuse ? 'Lempar dadu, atau pakai tuduhanmu (sekali per pesta).' : 'Lempar dadu: ketuk tombol atau dadu di meja.';
+    const row = el('div', 'act-row');
+    const b = btnWithIcon('btn primary roll', ICON.dice, 'Lempar Dadu'); b.onclick = () => { b.disabled = true; rollDice(); }; row.append(b);
+    if (canAccuse) { const a = btnWithIcon('btn accuse-btn', ICON_ACCUSE, 'Tuduh!'); a.onclick = () => openAccuse(); row.append(a); }
+    ap.append(row);
   } else if (s.step === 'MOVE') {
     msg.textContent = selected
       ? `Geser ${ch(selected).name} ke pulau berbingkai hijau (atau ketuk pulaunya).`
@@ -649,6 +770,8 @@ function renderGame() {
     if (priv.canDraw) { const b = btnWithIcon('btn', ICON.card, `Buka kartu tamu (${me.cards.length}/3)`); b.onclick = () => emit('draw'); ap.append(b); }
   }
   ap.prepend(msg);
+  renderMidnightPill(s);
+  syncGuessTags();
 
   $('#gamePlayers').replaceChildren(...s.players.map(p => playerItem(p, { game: true })));
   $('#log').replaceChildren(...[...s.log].reverse().slice(0, 40).map(l => el('li', null, l.text)));
@@ -689,11 +812,11 @@ function showReveal(ev, done) {
   const pic = el('div', 'rv-portrait'); const im = el('img'); im.src = getPortrait(c.id); im.alt = `Foto ${c.name}`; pic.append(im);
   let kicker, title, line;
   if (ev.type === 'eliminated') {
-    kicker = ev.self ? 'Sendirian!' : 'Topeng terbuka!';
+    kicker = ev.accused ? 'Tuduhan tepat!' : ev.self ? 'Sendirian!' : 'Topeng terbuka!';
     title = isMe ? 'Kamu tersingkir' : `${victim ? victim.name : '?'} tersingkir`;
-    line = ev.self ? `Ketahuan sendirian. Ternyata dia adalah` : `${pname(ev.by)} membuka topeng. Ternyata dia adalah`;
+    line = ev.accused ? `${pname(ev.by)} menuduh dengan tepat. Ternyata dia memang` : ev.self ? `Ketahuan sendirian. Ternyata dia adalah` : `${pname(ev.by)} membuka topeng. Ternyata dia adalah`;
     if (isMe) { A.sfx.lose(); vibrate([80, 60, 160]); } else { A.sfx.unmask(); vibrate(60); }
-    A.say(['unmask', isMe ? 'you_out' : `c-${c.id}`], { prio: 2, ttl: 8000 });
+    A.say([ev.accused ? 'accuse_ok' : 'unmask', isMe ? 'you_out' : `c-${c.id}`], { prio: 2, ttl: 8000 });
   } else if (ev.type === 'killed') {
     kicker = 'Hanya tamu biasa'; title = 'Salah sasaran!'; line = `${pname(ev.by)} membuka topeng. Ternyata hanya`; A.sfx.poof(); A.say(['guest', `c-${c.id}`], { prio: 2, ttl: 8000 });
   } else {
@@ -769,6 +892,8 @@ function renderRecap(s) {
     li.append(el('span', 'm-turn', t.turn ? `Giliran ${t.turn}` : 'Awal'));
     const txt = el('span', 'm-text');
     if (t.type === 'forfeit') txt.append(el('b', null, v ? v.name : '?'), ' meninggalkan pesta lebih awal.');
+    else if (t.type === 'accuse_fail') { const tg = byId(t.target); txt.append(el('b', null, v ? v.name : '?'), ' salah menuduh ', el('b', null, tg ? tg.name : '?'), ` sebagai ${charName(t.charId)}.`); }
+    else if (t.accused && b) txt.append(el('b', null, b.name), ' menuduh ', el('b', null, v ? v.name : '?'), ` dengan tepat: ${charName(t.charId)}.`);
     else if (b) txt.append(el('b', null, b.name), ' membongkar ', el('b', null, v ? v.name : '?'), ` — ternyata ${charName(t.charId)}, di ${room(t.room)}.`);
     else txt.append(el('b', null, v ? v.name : '?'), ` ketahuan sendirian di ${room(t.room)} — ternyata ${charName(t.charId)}.`);
     li.append(txt);

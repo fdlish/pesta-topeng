@@ -98,7 +98,7 @@ export class Board3D {
     Object.assign(this.controls, { enablePan: false, enableDamping: true, minPolarAngle: 0.12, maxPolarAngle: 1.1, minDistance: 8, maxDistance: 40 });
 
     // lampu: satu lampu meja hangat yang menyorot papan + isi dingin yang tipis
-    s.add(new THREE.HemisphereLight('#9fb4d8', '#20140a', 0.35));
+    s.add(this.hemi = new THREE.HemisphereLight('#9fb4d8', '#20140a', 0.35));
     const lamp = this.lamp = new THREE.SpotLight('#ffe3b3', 3.2, 0, 0.78, 0.6, 0);
     lamp.position.set(-2.5, 17, 7); lamp.target.position.set(0, 0, 0.6);
     lamp.castShadow = true; lamp.shadow.mapSize.set(1536, 1536); lamp.shadow.bias = -0.0004; lamp.shadow.normalBias = 0.02;
@@ -736,6 +736,30 @@ export class Board3D {
     el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -100%)`;
   }
 
+  // Tanda tebakan pribadi di atas bidak ("Joko?"), hanya di layar pemain ini
+  setGuessTags(map) {
+    this.tagEls = this.tagEls || new Map();
+    for (const [id, el] of this.tagEls) if (!map[id]) { el.remove(); this.tagEls.delete(id); }
+    for (const [id, name] of Object.entries(map)) {
+      let el = this.tagEls.get(id);
+      if (!el) { el = document.createElement('div'); el.className = 'guess-tag'; el.setAttribute('aria-hidden', 'true'); this.container.append(el); this.tagEls.set(id, el); }
+      if (el.textContent !== `${name}?`) el.textContent = `${name}?`;
+    }
+    this.dirty = true;
+  }
+  updateGuessTags() {
+    const r = this.renderer.domElement.getBoundingClientRect(), c = this.container.getBoundingClientRect();
+    for (const [id, el] of this.tagEls) {
+      const f = this.figures.get(id);
+      const hide = !f || !f.group.visible || f.removing || (this.peek && this.peek.id === id);
+      el.classList.toggle('off', !!hide);
+      if (hide) continue;
+      const v = f.group.position.clone(); v.y += (2.02 + (f.lift || 0)) * FIG_S; v.project(this.camera);
+      const x = r.left - c.left + ((v.x + 1) / 2) * r.width, y = r.top - c.top + ((1 - v.y) / 2) * r.height;
+      el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -100%)`;
+    }
+  }
+
   tap(e) {
     this.setPointer(e);
     if (this.ui.canRoll && this.raycaster.intersectObject(this.die, false).length) { this.h.onDiceTap && this.h.onDiceTap(); return; }
@@ -871,6 +895,22 @@ export class Board3D {
     if (this.lamp) this.lamp.castShadow = q !== 'hemat';
     this.renderer.toneMappingExposure = (this.opt.brightness || 100) / 100;
     this.dirty = true;
+  }
+  // Tengah malam: lampu meja meredup & mendingin, ruangan lebih gelap (transisi halus)
+  setMidnight(on) {
+    on = !!on;
+    if (this.midnightOn === on) return;
+    this.midnightOn = on;
+    const from = { li: this.lamp.intensity, h: this.hemi.intensity, e: this.scene.environmentIntensity };
+    const to = on ? { li: 1.5, h: 0.12, e: 0.1 } : { li: 3.2, h: 0.35, e: 0.35 };
+    const cA = this.lamp.color.clone(), cB = new THREE.Color(on ? '#aebfff' : '#ffe3b3');
+    const bgA = this.scene.background.clone(), bgB = new THREE.Color(on ? '#070a1a' : '#0d1229');
+    const go = t => {
+      this.lamp.intensity = from.li + (to.li - from.li) * t; this.hemi.intensity = from.h + (to.h - from.h) * t;
+      this.scene.environmentIntensity = from.e + (to.e - from.e) * t;
+      this.lamp.color.copy(cA).lerp(cB, t); this.scene.background.copy(bgA).lerp(bgB, t); this.scene.fog.color.copy(this.scene.background);
+    };
+    if (REDUCED) { go(1); this.dirty = true; } else this.tween(2.2, t => go(easeInOut(t)), null, null);
   }
   optOn(k) { return !this.opt || this.opt[k] !== false; }
 
@@ -1170,6 +1210,7 @@ export class Board3D {
     const camMoved = this.updateCinematicCamera(dt) || this.controls.update();
     const animating = this.tweens.length || this.camMode || showMe || this.peek || (ui.canRoll && !this.rolling) || shading || drag || movable.size || targets.size || dests.size || ui.selected || ui.killSel;
     if (this.peek) this.updatePeekLabel();
+    if (this.tagEls && this.tagEls.size) this.updateGuessTags();
     if (!animating && !camMoved && !this.dirty && !waveTick) return;
     this.dirty = false;
     this.renderer.render(this.scene, this.camera);

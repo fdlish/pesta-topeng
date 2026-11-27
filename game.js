@@ -57,8 +57,10 @@ function shuffle(arr, rng = Math.random) {
 }
 
 function createGame() {
-  return { phase: 'LOBBY', players: [], figures: {}, spots: {}, deck: [], turnIdx: 0, step: null, die: null, log: [], winnerId: null, seq: 0, rollId: 0, lastEvent: null, eventId: 0 };
+  return { phase: 'LOBBY', players: [], figures: {}, spots: {}, deck: [], turnIdx: 0, step: null, die: null, log: [], winnerId: null, seq: 0, rollId: 0, lastEvent: null, eventId: 0, rules: { accuse: true, midnight: true } };
 }
+const MIDNIGHT_ROUNDS = Number(process.env.MIDNIGHT_ROUNDS) || 5; // tengah malam setelah 5 putaran penuh
+const MIDNIGHT_BLACK = 3 / 7;       // peluang dadu hitam setelah tengah malam (biasanya 2/7)
 
 function event(g, type, charId, extra = {}) {
   g.lastEvent = { id: ++g.eventId, type, charId, ...extra };
@@ -79,7 +81,9 @@ function startGame(g, rng = Math.random) {
   if (g.players.length < MIN_PLAYERS) throw new Error(`Minimal ${MIN_PLAYERS} pemain`);
   const ids = shuffle(CHARACTERS.map(c => c.id), rng);
   g.players = shuffle(g.players, rng); // urutan giliran acak
-  g.players.forEach(p => { p.charId = ids.pop(); p.alive = true; p.cards = []; p.outAt = null; p.unmasks = 0; p.unmasksH = 0; p.forfeit = false; });
+  g.players.forEach(p => { p.charId = ids.pop(); p.alive = true; p.cards = []; p.outAt = null; p.unmasks = 0; p.unmasksH = 0; p.forfeit = false; p.accused = false; });
+  g.rules = { accuse: true, midnight: true, ...(g.rules || {}) };
+  g.midnight = false; g.midnightAt = g.players.length * MIDNIGHT_ROUNDS;
   g.outSeq = 0; g.standings = null;
   g.deck = ids; // sisa = tamu tak bersalah
   g.figures = {}; g.spots = {};
@@ -122,14 +126,14 @@ function assertTurn(g, pid, step) {
   return cp;
 }
 
-function eliminate(g, p, how, by = null) {
+function eliminate(g, p, how, by = null, extra = {}) {
   p.alive = false;
   p.outAt = ++g.outSeq; // urutan tersingkir → menentukan juara 2..8
   if (by) { const k = player(g, by); if (k) { k.unmasks = (k.unmasks || 0) + 1; if (!p.bot) k.unmasksH = (k.unmasksH || 0) + 1; } }
   const room = g.figures[p.charId] || null; // pulau tempat topeng terbuka
   delete g.figures[p.charId]; delete g.spots[p.charId];
-  event(g, 'eliminated', p.charId, { victim: p.id, by, self: !by, room });
-  (g.timeline = g.timeline || []).push({ type: 'out', victim: p.id, by, charId: p.charId, room, turn: g.turnNo || 0 });
+  event(g, 'eliminated', p.charId, { victim: p.id, by, self: !by, room, ...extra });
+  (g.timeline = g.timeline || []).push({ type: 'out', victim: p.id, by, charId: p.charId, room, turn: g.turnNo || 0, ...extra });
   log(g, `${how} ${p.name} ternyata adalah ${charLabel(p.charId)} — tersingkir!`);
 }
 
@@ -232,6 +236,10 @@ function forfeit(g, pid) {
 
 function nextTurn(g) {
   g.turnNo = (g.turnNo || 0) + 1;
+  if (g.rules && g.rules.midnight && !g.midnight && g.turnNo >= g.midnightAt) { // status, bukan event: tidak menimpa pengungkapan
+    g.midnight = true;
+    log(g, 'Tengah malam! Lampu meredup, dadu hitam lebih sering muncul.');
+  }
   for (const p of alivePlayers(g)) { // bidak pemain yang sedang sendirian di pulaunya
     const r = g.figures[p.charId];
     if (r && Object.values(g.figures).filter(x => x === r).length === 1) ST(g, p.id).aloneTurns++;
@@ -244,7 +252,7 @@ function nextTurn(g) {
 
 function roll(g, pid, rng = Math.random) {
   const p = assertTurn(g, pid, 'ROLL');
-  g.die = DIE[Math.floor(rng() * DIE.length)];
+  g.die = g.midnight ? (rng() < MIDNIGHT_BLACK ? 'hitam' : ROOMS[Math.floor(rng() * ROOMS.length)]) : DIE[Math.floor(rng() * DIE.length)];
   g.rollId++;
   if (g.die !== 'hitam') {
     log(g, `${p.name} melempar dadu: ${ROOM_LABEL[g.die].toUpperCase()} (${ROOM_COLOR_NAME[g.die]}).`);
@@ -259,6 +267,29 @@ function roll(g, pid, rng = Math.random) {
     return nextTurn(g);
   }
   g.step = 'BLACK';
+}
+
+// Tuduh! Sekali per pesta, sebagai ganti melempar dadu. Benar → target tersingkir.
+// Salah → pulau tempat tamu si penuduh berada diumumkan ke semua pemain.
+function accuse(g, pid, targetId, charId) {
+  const p = assertTurn(g, pid, 'ROLL');
+  if (!g.rules || !g.rules.accuse) throw new Error('Aturan Tuduh! tidak dipakai di pesta ini');
+  if (p.accused) throw new Error('Kamu sudah memakai tuduhanmu');
+  const t = player(g, targetId);
+  if (!t || !t.alive || t.id === p.id) throw new Error('Pilih pemain lawan yang masih di pesta');
+  if (!(charId in g.figures) || charId === p.charId) throw new Error('Pilih tamu yang masih ada di papan');
+  p.accused = true;
+  ST(g, p.id).accusations = (ST(g, p.id).accusations || 0) + 1;
+  if (t.charId === charId) {
+    ST(g, p.id).accuseHits = (ST(g, p.id).accuseHits || 0) + 1;
+    eliminate(g, t, `${p.name} menuduh dengan tepat!`, p.id, { accused: true });
+  } else {
+    const room = g.figures[p.charId];
+    event(g, 'accuse_fail', charId, { by: p.id, target: t.id, room });
+    (g.timeline = g.timeline || []).push({ type: 'accuse_fail', victim: p.id, target: t.id, charId, room, turn: g.turnNo || 0 });
+    log(g, `${p.name} menuduh ${t.name} sebagai ${charLabel(charId)}, tapi salah! Tamu milik ${p.name} ada di ${ROOM_LABEL[room]}.`);
+  }
+  nextTurn(g);
 }
 
 // spot (opsional) = titik pilihan pemain di dalam pulau tujuan; server menjepit & menghindari tabrakan
@@ -326,6 +357,7 @@ function autoAct(g, rng = Math.random) {
 // Gelar lucu dari statistik + momen penting. Tiap pemain maksimal satu gelar agar adil dibaca.
 const AWARDS = [
   { key: 'licin', title: 'Si Licin', pick: (g, p) => (p.id === g.winnerId && ST(g, p.id).selfMoves <= 1 ? 10 - ST(g, p.id).selfMoves : 0), text: (g, p) => ST(g, p.id).selfMoves ? 'Menang dan cuma sekali menyentuh bidaknya sendiri.' : 'Menang tanpa sekali pun menyentuh bidaknya sendiri.' },
+  { key: 'jitu', title: 'Detektif Jitu', pick: (g, p) => ST(g, p.id).accuseHits || 0, min: 1, text: (g, p) => 'Tuduhannya tepat sasaran.' },
   { key: 'bongkar', title: 'Tukang Bongkar', pick: (g, p) => p.unmasks || 0, min: 1, text: (g, p) => `Membongkar ${p.unmasks} topeng lawan.` },
   { key: 'nyaris', title: 'Hidup di Ujung Tanduk', pick: (g, p) => ST(g, p.id).aloneTurns, min: 2, text: (g, p) => `Bidaknya sendirian ${ST(g, p.id).aloneTurns} giliran${p.alive ? ', dan tetap selamat.' : '.'}` },
   { key: 'narsis', title: 'Sayang Diri Sendiri', pick: (g, p) => ST(g, p.id).selfMoves, min: 3, text: (g, p) => `Menggeser bidaknya sendiri ${ST(g, p.id).selfMoves} kali. Mencurigakan.` },
@@ -385,11 +417,42 @@ function botOdds(g, bot) { // peluang tiap bidak adalah milik lawan yang masih h
   for (const id of ids) odds[id] = Math.min(0.95, base * s[id] / mean);
   return odds;
 }
+// Bot menuduh hanya bila yakin: siapa yang berkali-kali "menyelamatkan" tamu tertentu.
+function botAccusation(g, bot, st) {
+  if (!g.rules || !g.rules.accuse || bot.accused) return null;
+  const foes = alivePlayers(g).filter(p => p.id !== bot.id);
+  const figs = Object.keys(g.figures).filter(id => id !== bot.charId);
+  if (!foes.length || !figs.length) return null;
+  const bold = bot.botStyle === 'nekat' ? 0.75 : bot.botStyle === 'waspada' ? 1.25 : 1;
+  let best = null;
+  for (const q of foes) {
+    const sc = {};
+    for (const id of figs) sc[id] = 0;
+    for (const m of g.moves || []) {
+      if (m.by !== q.id || !(m.charId in sc)) continue;
+      if (m.fromCount <= 2) sc[m.charId] += 1;
+      if (m.toCount >= 2) sc[m.charId] += 0.5;
+      if (m.toCount === 0) sc[m.charId] -= 1.2;
+    }
+    const ranked = figs.slice().sort((a, b) => sc[b] - sc[a]);
+    const top = sc[ranked[0]], gap = top - (sc[ranked[1]] || 0);
+    // lawan terakhir & tinggal sedikit tamu: tebakan peluang juga masuk akal
+    const endgame = foes.length === 1 && figs.length <= 2;
+    const conf = top >= 3.5 * bold && gap >= 2 * bold ? top + gap : endgame ? 1 : 0;
+    if (conf && (!best || conf > best.conf)) best = { target: q.id, charId: ranked[0], conf };
+  }
+  return best;
+}
+
 function botAct(g, rng = Math.random) {
   const p = currentPlayer(g);
   if (!p) return;
   const st = BOT_STYLES[p.botStyle] || BOT_STYLES.licik;
-  if (g.step === 'ROLL') return roll(g, p.id, rng);
+  if (g.step === 'ROLL') {
+    const acc = botAccusation(g, p, st);
+    if (acc) return accuse(g, p.id, acc.target, acc.charId);
+    return roll(g, p.id, rng);
+  }
   const odds = botOdds(g, p);
   if (g.step === 'MOVE') {
     let best = null, bestScore = -Infinity;
@@ -437,6 +500,7 @@ function publicView(g) {
       id: p.id, name: p.name, connected: p.connected, alive: p.alive, cards: p.cards,
       revealed: ((!p.alive && !p.forfeit) || over) ? p.charId : null,
       forfeit: !!p.forfeit,
+      accused: !!p.accused,
       bot: p.bot ? (BOT_STYLES[p.botStyle] || {}).label || 'Bot' : null,
     })),
     figures: g.figures,
@@ -452,6 +516,8 @@ function publicView(g) {
     winnerId: g.winnerId,
     standings: g.phase === 'GAME_OVER' ? g.standings : null,
     recap: g.phase === 'GAME_OVER' ? g.recap : null,
+    rules: g.rules || { accuse: true, midnight: true },
+    midnight: !!g.midnight, midnightAt: g.midnightAt || 0, turnNo: g.turnNo || 0,
     order: g.order ? { round: g.order.round, pending: g.order.pending, last: g.order.last, tied: g.order.tied, done: g.order.done } : null,
   };
 }
@@ -465,6 +531,6 @@ function privateView(g, p) {
 
 module.exports = {
   ROOMS, ROOM_LABEL, ROOM_COLOR_NAME, ADJ, DIE, CHARACTERS, MIN_PLAYERS, MAX_PLAYERS,
-  createGame, startGame, roll, move, kill, draw, autoAct, resetToLobby, legalMoves, blackOptions,
+  createGame, startGame, roll, accuse, move, kill, draw, autoAct, resetToLobby, legalMoves, blackOptions,
   publicView, privateView, currentPlayer, player, standings, forfeit, orderRoll, orderAutoRoll, botAct, BOT_STYLES, BOT_NAMES,
 };

@@ -24,6 +24,9 @@ Papan: `[Sumatera][Kalimantan] / [Jawa] / [Sulawesi][Papua]`.
 Dadu berbentuk **prisma segi lima dengan 7 sisi**: 5 sisi panjang PAPUA, SULAWESI, JAWA, SUMATERA, KALIMANTAN (masing-masing dengan warnanya) + 2 ujung HITAM. Peluangnya: HITAM 2/7 (±29%), tiap pulau 1/7 (±14%). Hasil diundi server secara adil, jadi bentuk prisma tidak memengaruhi peluang.
 
 ## Main bareng (v3)
+- **Tuduh!** (aturan tambahan, bawaan menyala): sekali per pesta, sebagai ganti melempar dadu, tuduh "Joko adalah Pilot". Tepat: Joko langsung tersingkir. Salah: pulau tempat tamumu berada diumumkan ke semua pemain. Bot ikut menuduh bila cukup yakin.
+- **Tengah malam** (aturan tambahan, bawaan menyala): setelah 5 putaran, lampu meja meredup dan dadu hitam keluar 3 dari 7 kali (biasanya 2 dari 7). Hitung mundurnya terlihat di pojok papan. Host bisa mematikan kedua aturan di lobby.
+- **Tandai bidak**: ketuk bidak mana pun → pilih "milik siapa?". Label "Joko?" muncul di atas bidak itu (hanya di layarmu), tersambung dengan catatan rahasia dan otomatis terisi saat menuduh.
 - **Bot pemain**: host bisa mengisi kursi kosong dengan bot berkepribadian *Nekat* (cepat buka topeng), *Licik* (jarang menyentuh bidaknya sendiri, suka buka kartu), atau *Waspada* (menjaga bidaknya di keramaian). Bot membaca gerak-gerik lawan untuk menebak bidak pemain dan "berpikir" dengan jeda alami. Main sendirian lawan bot = latihan tanpa poin; dengan 2+ manusia, poin dihitung antar-manusia saja (bonus juara hanya untuk pemenang sungguhan).
 - **Gladi resik (latihan)**: satu ketukan dari beranda, tanpa akun. Room privat + 2 bot, dengan panduan yang muncul sesuai situasi.
 - **Reaksi cepat**: Curiga, Waduh, Sstt, Wkwk, Bukan aku!, Mantap. Muncul sebagai gelembung di bawah nama pemain; bot ikut heboh saat topeng terbongkar.
@@ -166,6 +169,7 @@ npm test
 |---|---|---|
 | `PORT` | 3000 | Port server |
 | `TURN_MS` | 45000 | Batas waktu per giliran. Kalau habis, server menjalankan aksi otomatis. |
+| `MIDNIGHT_ROUNDS` | 5 | Jumlah putaran sebelum tengah malam |
 | `BOT_SPEED` | 1 | Pengali jeda berpikir bot (mis. 0.2 untuk pengujian cepat) |
 | `ORDER_MS` | 15000 | Batas waktu lempar 2 dadu penentu urutan giliran di awal pesta |
 | `OFFLINE_TURN_MS` | 8000 | Batas waktu giliran untuk pemain yang sedang offline |

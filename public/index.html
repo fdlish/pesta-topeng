@@ -156,6 +156,7 @@
     <h2>Pemain <span id="lobbyCount" class="muted"></span></h2>
     <ul id="lobbyPlayers" class="plist"></ul>
     <div id="botRow" class="bot-row hidden"></div>
+    <div id="rulesRow" class="rules-row"></div>
     <button id="startBtn" class="btn primary">Mulai Pesta</button>
     <p id="lobbyHint" class="muted center"></p>
     <p id="lobbyErr" class="err"></p>
@@ -182,6 +183,8 @@
     <div id="board3d" class="board3d">
       <div id="rollBanner" class="roll-banner hidden"></div>
       <div id="reactLayer" class="react-layer" aria-live="polite"></div>
+      <div id="markBar" class="mark-bar hidden" role="dialog" aria-labelledby="markTitle"><div class="mark-head"><b id="markTitle"></b><button id="markClose" class="icon-btn sm" type="button" aria-label="Tutup"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div><p class="mark-sub">Tanda rahasia, hanya terlihat olehmu.</p><div id="markChips" class="mark-chips"></div></div>
+      <div id="midnightPill" class="midnight-pill hidden" role="status"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg><span id="midnightText"></span></div>
       <div id="coach" class="coach hidden" role="status" aria-live="polite"><p id="coachText"></p><button id="coachOk" class="btn small" type="button">Mengerti</button></div>
       <div class="react-dock">
         <div id="reactTray" class="react-tray hidden" role="menu" aria-label="Kirim reaksi"></div>
@@ -256,6 +259,15 @@
         <div class="set-row"><label for="set-peekLabel"><span>Nama profesi saat bidak diketuk</span><small>Label kecil di atas kepala bidak</small></label><button type="button" role="switch" id="set-peekLabel" data-k="peekLabel" class="switch" aria-checked="false"><span class="sr-only">Nama profesi saat bidak diketuk</span></button></div>
       </div>
       <button id="settingsReset" class="link-btn set-reset" type="button">Kembalikan ke bawaan</button>
+    </div>
+  </div>
+  <div id="accuseSheet" class="overlay note-sheet hidden" role="dialog" aria-modal="true" aria-labelledby="accuseTitle">
+    <div class="card note-card accuse-card">
+      <div class="note-head"><div><h3 id="accuseTitle">Tuduh!</h3></div><button id="accuseClose" class="icon-btn sm" type="button" aria-label="Batal"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+      <p class="note-sub">Hanya sekali per pesta, sebagai ganti melempar dadu. Tepat: dia langsung tersingkir. Salah: pulau tempat tamumu berada diumumkan ke semua.</p>
+      <div id="accuseWho" class="acc-who-row" aria-label="Pilih pemain"></div>
+      <div id="accuseGrid" class="note-grid hidden" aria-label="Pilih tamu"></div>
+      <button id="accuseGo" class="btn primary accuse-go" type="button" disabled>Pilih pemain yang mau dituduh</button>
     </div>
   </div>
   <div id="noteSheet" class="overlay note-sheet hidden" role="dialog" aria-modal="true" aria-labelledby="noteTitle">

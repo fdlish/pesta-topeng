@@ -421,6 +421,13 @@ io.on('connection', socket => {
     G.startGame(room.game);
   }));
   socket.on('roll', action((room, p) => G.roll(room.game, p.id)));
+  socket.on('accuse', action((room, p, { target, charId } = {}) => G.accuse(room.game, p.id, target, charId)));
+  socket.on('set_rules', action((room, p, rules = {}) => {
+    if (p.id !== room.hostId) throw new Error('Hanya host yang bisa mengubah aturan');
+    if (room.game.phase !== 'LOBBY') throw new Error('Aturan hanya bisa diubah di lobby');
+    const r = room.game.rules || (room.game.rules = { accuse: true, midnight: true });
+    for (const k of ['accuse', 'midnight']) if (typeof rules[k] === 'boolean') r[k] = rules[k];
+  }));
   socket.on('order_roll', action((room, p) => G.orderRoll(room.game, p.id)));
   socket.on('move', action((room, p, { charId, to, spot }) => G.move(room.game, p.id, charId, to, spot)));
   socket.on('kill', action((room, p, { targetId }) => G.kill(room.game, p.id, targetId)));
