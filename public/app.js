@@ -288,6 +288,7 @@ function playerItem(p, opts = {}) {
   const line = el('span', 'pn-line');
   line.append(el('span', 'pn', p.name));
   if (p.id === state.hostId) { const t = el('span', 'host-ic'); t.innerHTML = ICON.crown; t.title = 'Host'; t.append(el('span', 'sr-only', 'host')); line.append(t); }
+  if (p.level && !p.bot) line.append(Home.levelBadge(p.level, true));
   if (p.id === me.id) line.append(el('span', 'you', 'kamu'));
   nm.append(line);
   // baris kedua: identitas akun, tamu, atau offline (bukan tumpukan badge)
@@ -698,6 +699,7 @@ function chip(p, reuse) {
   if (p.revealed) { const im = el('img', 'chip-av'); im.src = getPortrait(p.revealed); im.alt = ch(p.revealed).name; c.append(im); }
   else if (p.avatarUrl) c.append(Home.avatar(p.name, p.avatarUrl, 'chip-av initial'));
   else c.append(initialAvatar(p.name, 'chip-av initial'));
+  const plate = p.cos && p.cos.plate; if (plate && plate !== 'polos') c.classList.add('np', `np-${plate}`);
   c.append(el('span', 'chip-name', p.name + (p.id === me.id ? ' (kamu)' : '')));
   const g = canNote && notes[p.id] && state.figures[notes[p.id]] ? notes[p.id] : null;
   if (g) { const gi = el('span', 'chip-guess'); const im = el('img'); im.src = getPortrait(g); im.alt = ''; gi.append(im, el('span', 'cg-q', '?')); gi.title = `Tebakanmu: ${ch(g).name}`; c.append(gi); }

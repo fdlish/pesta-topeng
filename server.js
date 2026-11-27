@@ -11,6 +11,7 @@ const SCORING = require('./scoring');
 const MISSIONS = require('./missions');
 const DAILY = require('./daily');
 const COSMETICS = require('./cosmetics');
+const LEVELS = require('./levels');
 const { createStore, pub, withRanks, StoreError, validateUsername } = require('./store');
 
 const store = createStore();
@@ -149,14 +150,18 @@ async function awardRoom(room) {
       if (s.progress) await store.saveProgress(s.p.uid, s.progress).catch(e => console.error('progress', e.message));
       const prof = await store.getProfile(s.p.uid);
       const total = Number(prof?.points) || 0;
+      const lvA = LEVELS.levelOf(total - s.points).level, lvB = LEVELS.levelOf(total).level;
+      Object.assign(s.p, { level: lvB, tier: SCORING.tierOf(total) });
       const reward = {
         placement: s.placement, points: s.points, total,
+        levelBefore: lvA, level: LEVELS.levelOf(total), newItems: COSMETICS.unlockedByLevel(lvA, lvB),
         tierBefore: SCORING.tierOf(total - s.points), tierAfter: SCORING.tierOf(total),
         rank: await store.rank(s.p.uid).catch(() => null),
         missions: s.missions || null,
       };
       for (const sock of userSockets(s.p.uid)) { sock.data.profile = prof; sock.emit('reward', reward); sock.emit('me', mePayload(sock)); }
     }
+    sync(room); // level & tingkat terbaru tampil di daftar pemain
   } catch (e) {
     console.error('awardMatch', e.message);
     for (const s of ranked) for (const sock of userSockets(s.p.uid)) sock.emit('reward', { error: 'Poin gagal disimpan, coba lagi nanti.' });
@@ -182,7 +187,7 @@ function cleanName(n) {
 function sync(room) {
   const g = room.game;
   const view = G.publicView(g);
-  const extra = Object.fromEntries(g.players.map(p => [p.id, { publicId: p.publicId || null, avatarUrl: p.avatarUrl || null, tier: p.uid ? p.tier : null, title: p.uid ? p.title || null : null, cos: p.uid ? p.cos || null : null, guest: !p.uid }]));
+  const extra = Object.fromEntries(g.players.map(p => [p.id, { publicId: p.publicId || null, avatarUrl: p.avatarUrl || null, tier: p.uid ? p.tier : null, title: p.uid ? p.title || null : null, cos: p.uid ? p.cos || null : null, level: p.uid ? p.level || null : null, guest: !p.uid }]));
   view.players = view.players.map(p => ({ ...p, ...extra[p.id] }));
   const pub = { ...view, code: room.code, hostId: room.hostId, visibility: room.visibility, tutorial: !!room.tutorial, turnEndsAt: room.turnEndsAt, serverNow: Date.now() };
   io.to(room.code).emit('state', pub);
@@ -303,7 +308,7 @@ io.on('connection', socket => {
   const newPlayer = (name) => {
     const prof = socket.data.profile;
     const p = { id: nanoid(10), name, connected: true, alive: true, cards: [], charId: null };
-    if (prof) Object.assign(p, { name: prof.username, uid: socket.data.user.uid, publicId: prof.public_id, avatarUrl: prof.avatar_url || null, tier: SCORING.tierOf(Number(prof.points) || 0), title: pub(prof).title, cos: pub(prof).cos });
+    if (prof) Object.assign(p, { name: prof.username, uid: socket.data.user.uid, publicId: prof.public_id, avatarUrl: pub(prof).avatarUrl, tier: SCORING.tierOf(Number(prof.points) || 0), level: pub(prof).level.level, title: pub(prof).title, cos: pub(prof).cos });
     return p;
   };
   const displayName = (name) => socket.data.profile ? socket.data.profile.username : cleanName(name);
@@ -365,12 +370,12 @@ io.on('connection', socket => {
       const prof = await store.getProfile(user.uid);
       const item = COSMETICS.find(kind, key);
       if (!item) return reply(cb, { error: 'Hiasan tidak dikenal' });
-      if (!COSMETICS.owned(item, prof?.progress?.done)) return reply(cb, { error: 'Hiasan ini belum terbuka' });
+      if (!COSMETICS.owned(item, prof?.progress?.done, COSMETICS.levelOfProfile(prof))) return reply(cb, { error: 'Hiasan ini belum terbuka' });
       await store.setCosmetics(user.uid, { ...COSMETICS.resolve(prof), [kind]: key });
       socket.data.profile = await store.getProfile(user.uid);
       lbCache = null;
       const room = rooms.get(socket.data.code), p = room && G.player(room.game, socket.data.playerId);
-      if (p) { p.cos = pub(socket.data.profile).cos; sync(room); }
+      if (p) { const pp = pub(socket.data.profile); p.cos = pp.cos; p.avatarUrl = pp.avatarUrl; sync(room); }
       reply(cb, { ...mePayload(socket), cosmetics: COSMETICS.view(socket.data.profile) });
     } catch (e) { console.error('set_cosmetic', e.message); reply(cb, { error: 'Gagal memakai hiasan' }); }
   });

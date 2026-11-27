@@ -54,6 +54,10 @@ Dadu berbentuk **prisma segi lima dengan 7 sisi**: 5 sisi panjang PAPUA, SULAWES
   - *Corak dadu* (6): dadu di papan memakai corak milik pemain yang sedang giliran. Warna sisi pulau tidak pernah berubah.
   - *Taplak meja* (4): hanya untuk tampilan sendiri.
   - Warna alas bidak sengaja tidak dibuat, karena akan membocorkan identitas rahasia.
+- **Level 1–100** (`levels.js`) dari total poin: Lv 10 ≈ 240 poin, Lv 50 ≈ 2.900, Lv 100 ≈ 9.300. Level tampil di profil (dengan bar progres & hadiah berikutnya), lobby, dan menu akun; layar akhir mengumumkan naik level beserta hiasan yang baru terbuka.
+- **Foto profil topeng** (`public/avatars/*.webp`, dibuat oleh `tools/avatars/studio.js` + `render.py`): 20 topeng 3D di Level 1, 2, 4, 6, 8, 10, 13, 16, 20, 25, 30, 35, 40, 45, 50, 60, 70, 80, 90, 100, plus 5 dari misi khusus (Dalang, Bayangan, Emas Murni, Mata Ketiga, Kolektor). Foto akun tetap bisa dipakai.
+- **Bar nama** di deretan pemain saat bermain: 11 corak per level (3 sampai 100) + 3 dari misi khusus. Giliran tetap ditandai cincin kunyit, pemain tersingkir tetap kelabu.
+- Foto profil dan bingkai berbentuk persegi bersudut lengkung.
 - **Kartu hasil** (`public/sharecard.js`): gambar 1080×1350 di akhir pesta berisi tokohmu, posisi, angka, gelar pesta, misi rahasia, dan gelar baru. Bisa dibagikan langsung (WhatsApp/Story lewat menu bagikan HP), disimpan, atau disalin sebagai teks.
 
 ## Pengalaman bermain (polesan v2)

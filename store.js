@@ -10,6 +10,7 @@ const crypto = require('crypto');
 const SCORING = require('./scoring');
 const MISSIONS = require('./missions');
 const COSMETICS = require('./cosmetics');
+const LEVELS = require('./levels');
 
 const USERNAME_RE = /^[A-Za-z0-9_]{3,16}$/;
 const ID_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -24,13 +25,15 @@ function validateUsername(u) {
   return u;
 }
 
-const pub = p => p && ({
-  publicId: p.public_id, username: p.username, avatarUrl: p.avatar_url || null,
+const pub = p => p && pubOf(p, COSMETICS.resolve(p));
+const pubOf = (p, cos) => ({
+  publicId: p.public_id, username: p.username, avatarUrl: COSMETICS.avatarUrl(p, cos), photoUrl: p.avatar_url || null,
+  level: LEVELS.levelOf(p.points),
   points: Number(p.points) || 0, games: p.games || 0, wins: p.wins || 0, unmasks: p.unmasks || 0,
   tier: SCORING.tierOf(Number(p.points) || 0),
   title: MISSIONS.titleOf(p.title && p.progress?.done?.[p.title] ? p.title : null),
   titles: Object.keys(p.progress?.done || {}).length,
-  cos: COSMETICS.resolve(p),
+  cos,
 });
 
 // Peringkat kompetisi standar: seri poin dipecah kemenangan, seri penuh = peringkat sama.

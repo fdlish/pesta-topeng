@@ -40,6 +40,12 @@ export function titleBadge(t, small) {
   b.title = `Gelar ${({ mudah: 'mudah', sedang: 'sedang', sulit: 'sulit', legendaris: 'legendaris' })[t.tier] || ''}`;
   return b;
 }
+export function levelBadge(lv, small) {
+  const n = typeof lv === 'object' && lv ? lv.level : lv;
+  if (!n) return null;
+  const b = el('span', 'lv-badge' + (small ? ' sm' : '') + (n >= 100 ? ' max' : n >= 50 ? ' hi' : ''), `Lv ${n}`);
+  b.title = `Level ${n}`; return b;
+}
 export function tierBadge(t, small) {
   if (!t) return el('span');
   const b = el('span', 'tier' + (small ? ' sm' : ''), t.name); b.style.setProperty('--tc', t.color);
@@ -122,7 +128,7 @@ function renderAccount() {
   chip.setAttribute('aria-label', `Profil ${p.username}, ${fmt(p.points)} poin`);
   chip.append(avatar(p.username, p.avatarUrl, 'p-avatar sm', p.cos?.frame));
   const t = el('span', 'me-text');
-  t.append(el('b', null, p.username), el('small', null, `#${p.publicId} · ${fmt(p.points)} poin`));
+  t.append(el('b', null, p.username), el('small', null, `Lv ${p.level?.level || 1} · ${fmt(p.points)} poin`));
   chip.append(t);
   chip.onclick = () => selectTab('me');
   area.append(chip);
@@ -366,9 +372,20 @@ async function renderProfile(fetchStats) {
   const idb = el('button', 'id-pill'); idb.setAttribute('aria-label', `Salin ID ${p.publicId}`);
   idb.append(el('span', null, '#' + p.publicId)); idb.insertAdjacentHTML('beforeend', IC.copy);
   idb.onclick = async () => { try { await navigator.clipboard.writeText(p.publicId); D.toast('ID disalin'); } catch { D.toast('ID kamu: ' + p.publicId); } };
-  who.append(idb, tierBadge(p.tier));
+  who.append(idb, levelBadge(p.level), tierBadge(p.tier));
   if (p.title) who.append(titleBadge(p.title));
   top.append(who); card.append(top);
+  // progres level
+  if (p.level) {
+    const L = p.level, lp = el('div', 'lv-prog');
+    const head = el('div', 'lv-head'); head.append(el('b', null, `Level ${L.level}`), el('small', null, L.to ? `${fmt(L.to - p.points)} poin lagi ke Level ${L.level + 1}` : 'Level tertinggi!'));
+    const bar = el('div', 'tp-bar lv-bar'); bar.setAttribute('role', 'progressbar'); bar.setAttribute('aria-valuemin', '0'); bar.setAttribute('aria-valuemax', String(L.span || 1)); bar.setAttribute('aria-valuenow', String(L.span ? L.into : 1)); bar.setAttribute('aria-label', `Menuju level ${L.level + 1}`);
+    const fill = el('i'); fill.style.setProperty('--w', `${L.span ? Math.min(100, (L.into / L.span) * 100) : 100}%`); fill.style.setProperty('--tc', 'var(--kunyit)'); bar.append(fill);
+    lp.append(head, bar);
+    const nx = (CONFIG.cosmetics || []).filter(i => i.unlock && typeof i.unlock === 'object' && i.unlock.level > L.level).sort((a, b) => a.unlock.level - b.unlock.level)[0];
+    if (nx) lp.append(el('small', 'lv-next', `Hadiah berikutnya di Level ${nx.unlock.level}: ${nx.name} (${COS_KIND[nx.kind][0].toLowerCase()})`));
+    card.append(lp);
+  }
   // progres tier
   const nt = nextTier(p.points);
   const prog = el('div', 'tier-prog');
@@ -457,10 +474,17 @@ function dailySection() {
 }
 
 // ------------------------------------------------------------ hiasan ---
-const COS_KIND = { frame: ['Bingkai foto', 'Terlihat semua orang di lobby, peringkat, dan profilmu.'], dice: ['Corak dadu', 'Tampil di papan semua pemain saat giliranmu.'], cloth: ['Taplak meja', 'Hanya untuk tampilan papanmu sendiri.'] };
+const COS_KIND = { avatar: ['Foto profil', 'Topeng koleksi untuk foto profilmu. Terbuka setiap naik level, sebagian dari misi khusus.'], plate: ['Bar nama', 'Corak namamu di deretan pemain saat bermain. Semua pemain melihatnya.'], frame: ['Bingkai foto', 'Terlihat semua orang di lobby, peringkat, dan profilmu.'], dice: ['Corak dadu', 'Tampil di papan semua pemain saat giliranmu.'], cloth: ['Taplak meja', 'Hanya untuk tampilan papanmu sendiri.'] };
 const DICE_SW = { klasik: ['#efe5d0', '#17181d', '#F2C14E'], cabai: ['#C8322A', '#17181d', '#F2C14E'], perak: ['#c9cfd6', '#22262e', '#eef2f6'], nila: ['#26346a', '#0d1124', '#F2C14E'], giok: ['#3f9a7a', '#10261e', '#e9f5ee'], emas: ['#e2b54a', '#2a2110', '#f6d77a'], dalang: ['#17181d', '#2a0d0d', '#C8322A'] };
 const CLOTH_SW = { nila: '#18224a', sogan: '#3b2415', hijau: '#173f2c', marun: '#3e1220', hitam: '#111114' };
+export function plateChip(key, name) {
+  const c = el('span', 'chip plate-prev' + (key && key !== 'polos' ? ` np np-${key}` : ''));
+  c.append(el('span', 'chip-name', name || 'Nama'));
+  return c;
+}
 function cosPreview(it) {
+  if (it.kind === 'avatar') return it.key === 'asli' ? avatar(acct.profile?.username, acct.profile?.photoUrl, 'p-avatar lg') : (() => { const im = el('img', 'p-avatar lg'); im.src = `/avatars/${it.key}.webp`; im.alt = ''; im.loading = 'lazy'; return im; })();
+  if (it.kind === 'plate') return plateChip(it.key, acct.profile?.username);
   if (it.kind === 'frame') return avatar(acct.profile?.username, acct.profile?.avatarUrl, 'p-avatar lg', it.key);
   if (it.kind === 'dice') { const [t, b, m] = DICE_SW[it.key] || DICE_SW.klasik; const d = el('span', 'cos-die'); d.style.setProperty('--t', t); d.style.setProperty('--b', b); d.style.setProperty('--m', m); d.append(el('i')); return d; }
   const c = el('span', 'cos-cloth'); c.style.setProperty('--c', CLOTH_SW[it.key] || CLOTH_SW.nila); return c;
@@ -473,16 +497,18 @@ function cosmeticSection() {
   wrap.append(head, el('p', 'ms-note', 'Hiasan terbuka bersama gelar. Tidak mengubah aturan main.'));
   if (!list) return wrap;
   const titleName = k => (CONFIG.missions?.missions || []).find(m => m.key === k)?.title || k;
-  for (const kind of ['frame', 'dice', 'cloth']) {
+  const need = it => (it.unlock && typeof it.unlock === 'object' ? `Level ${it.unlock.level}` : `Gelar ${titleName(it.unlock)}`);
+  for (const kind of ['avatar', 'plate', 'frame', 'dice', 'cloth']) {
     const g = el('div', 'cos-group');
     g.append(el('h4', null, COS_KIND[kind][0]), el('p', 'cos-help', COS_KIND[kind][1]));
-    const row = el('div', 'cos-row');
+    const row = el('div', 'cos-row' + (kind === 'plate' ? ' plates' : ''));
     for (const it of list.filter(i => i.kind === kind)) {
-      const b = el('button', 'cos-item' + (it.on ? ' on' : '') + (it.owned ? '' : ' locked'));
+      const b = el('button', 'cos-item' + (it.on ? ' on' : '') + (it.owned ? '' : ' locked') + (it.special ? ' special' : ''));
       b.type = 'button'; b.setAttribute('aria-pressed', String(it.on));
-      b.append(cosPreview(it), el('span', 'cos-name', it.name), el('small', 'cos-sub', it.on ? 'Dipakai' : it.owned ? 'Pakai' : `Gelar ${titleName(it.unlock)}`));
-      b.setAttribute('aria-label', `${COS_KIND[kind][0]} ${it.name}` + (it.owned ? '' : `, terkunci, buka dengan gelar ${titleName(it.unlock)}`));
-      b.onclick = () => it.owned ? (it.on || setCosmetic(kind, it.key)) : D.toast(`Selesaikan misi "${titleName(it.unlock)}" untuk membuka ${it.name}.`);
+      if (it.special) b.append(el('span', 'cos-flag', 'Misi khusus'));
+      b.append(cosPreview(it), el('span', 'cos-name', it.name), el('small', 'cos-sub', it.on ? 'Dipakai' : it.owned ? 'Pakai' : need(it)));
+      b.setAttribute('aria-label', `${COS_KIND[kind][0]} ${it.name}` + (it.owned ? '' : `, terkunci, buka di ${need(it)}`));
+      b.onclick = () => it.owned ? (it.on || setCosmetic(kind, it.key)) : D.toast(it.unlock && typeof it.unlock === 'object' ? `${it.name} terbuka di Level ${it.unlock.level}. Levelmu sekarang ${acct.profile?.level?.level || 1}.` : `Selesaikan misi "${titleName(it.unlock)}" untuk membuka ${it.name}.`);
       row.append(b);
     }
     g.append(row); wrap.append(g);
@@ -559,7 +585,7 @@ export async function openPlayer(publicId) {
   const p = r.profile;
   const top = el('div', 'pc-top');
   top.append(avatar(p.username, p.avatarUrl, 'p-avatar xl', p.cos?.frame));
-  const who = el('div', 'pc-who'); who.append(el('h2', null, p.username), el('span', 'id-pill static', '#' + p.publicId), tierBadge(p.tier));
+  const who = el('div', 'pc-who'); who.append(el('h2', null, p.username), el('span', 'id-pill static', '#' + p.publicId), levelBadge(p.level), tierBadge(p.tier));
   if (p.title) who.append(titleBadge(p.title));
   top.append(who);
   const grid = el('div', 'stat-grid');
@@ -687,7 +713,7 @@ export function renderReward(state, meId) {
   const meP = state.players.find(p => p.id === meId);
   if (!mine || !meP) return box.classList.add('hidden');
   box.classList.remove('hidden');
-  const key = JSON.stringify([mine.placement, !!reward, reward?.total, meP.guest, !!reward?.missions]);
+  const key = JSON.stringify([mine.placement, !!reward, reward?.total, meP.guest, !!reward?.missions, mine.points]);
   if (box.dataset.key === key) return;
   box.dataset.key = key;
   box.replaceChildren();
@@ -712,6 +738,19 @@ export function renderReward(state, meId) {
   else if (reward.error) foot.append(el('span', 'bad', reward.error));
   else {
     foot.append(el('span', null, `Total ${fmt(reward.total)} poin`), el('span', null, reward.rank ? `Peringkat #${reward.rank}` : ''));
+    if (reward.level && reward.levelBefore && reward.level.level > reward.levelBefore) {
+      const up = el('div', 'tier-up lv-up'); up.append(el('span', null, 'Naik level!'), levelBadge(reward.level));
+      box.append(up);
+      for (const it of reward.newItems || []) {
+        const u = el('div', 'rw-unlock rw-item');
+        if (it.kind === 'avatar') { const im = el('img', 'p-avatar sm'); im.src = `/avatars/${it.key}.webp`; im.alt = ''; u.append(im); }
+        else if (it.kind === 'plate') u.append(plateChip(it.key, it.name));
+        u.append(el('span', null, `${COS_KIND[it.kind][0]} baru: ${it.name}`));
+        const b = el('button', 'link-btn', 'Pakai'); b.onclick = () => { setCosmetic(it.kind, it.key); b.remove(); }; u.append(b);
+        box.append(u);
+      }
+      D.sfx.win && setTimeout(() => D.sfx.win(), 500);
+    }
     if (reward.tierAfter && reward.tierBefore && reward.tierAfter.id !== reward.tierBefore.id) {
       const up = el('div', 'tier-up'); up.append(el('span', null, 'Naik tingkat!'), tierBadge(reward.tierAfter)); box.append(up);
       D.sfx.win && setTimeout(() => D.sfx.win(), 600);

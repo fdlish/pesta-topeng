@@ -158,9 +158,13 @@ input:focus { outline: none; border-color: var(--brass); box-shadow: 0 0 0 3px r
   .screen.game3d { display: grid; grid-template-columns: 1fr 340px; grid-template-rows: auto auto 1fr auto; }
   .hud-top, .player-strip, .board3d, .sheet { grid-column: 1; }
   .sheet { flex-direction: row; align-items: stretch; }
-  .sheet .identity { width: 380px; flex: none; }
+  .sheet .identity { width: clamp(280px, 30vw, 380px); flex: none; }
   .sheet .action-panel { flex: 1; flex-direction: row; align-items: center; justify-content: space-between; }
   .sheet .action-panel .btn { width: auto; min-width: 220px; }
+  .sheet .action-panel { flex-wrap: wrap; gap: 10px 14px; }
+  .sheet .action-panel > :not(.act-row) { flex: 1 1 180px; }
+  .sheet .action-panel .act-row { flex: 1 1 300px; max-width: 460px; }
+  .sheet .action-panel .act-row .btn { min-width: 0; width: 100%; padding-inline: 14px; }
   .drawer, .drawer.hidden { display: block !important; position: static; grid-column: 2; grid-row: 1 / 5; width: auto; box-shadow: none; }
   #logBtn, #drawerClose { display: none; }
 }
@@ -203,7 +207,7 @@ body.reduce-motion *, body.reduce-motion *::before, body.reduce-motion *::after 
 .cast-item figcaption { font-size: .72rem; color: var(--muted); white-space: nowrap; }
 
 /* avatar inisial pemain */
-.p-avatar, .chip-av.initial { --h: 30; display: inline-grid; place-items: center; flex: none; width: 34px; height: 34px; border-radius: 50%; font-weight: 700; font-size: .95rem; color: #fff;
+.p-avatar, .chip-av.initial { --h: 30; display: inline-grid; place-items: center; flex: none; width: 34px; height: 34px; border-radius: 28%; font-weight: 700; font-size: .95rem; color: #fff;
   background: linear-gradient(160deg, hsl(var(--h) 55% 52%), hsl(calc(var(--h) + 30) 55% 36%)); box-shadow: 0 0 0 2px rgba(255,255,255,.12); }
 .plist li .pn { font-weight: 600; }
 .plist li.pop { animation: popIn .45s var(--spring) both; }
@@ -239,7 +243,7 @@ body.reduce-motion *, body.reduce-motion *::before, body.reduce-motion *::after 
 .action-panel.mine { border-color: rgba(242,193,78,.55); box-shadow: 0 0 0 1px rgba(242,193,78,.25), 0 10px 30px -12px rgba(242,193,78,.45); }
 .roll { animation: rollCall 1.6s ease-in-out infinite; }
 @keyframes rollCall { 0%, 100% { transform: none; } 50% { transform: translateY(-2px); box-shadow: 0 1px 0 rgba(255,255,255,.4) inset, 0 14px 32px -8px rgba(242,193,78,.85); } }
-.chip-av { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; background: #26315f; flex: none; }
+.chip-av { width: 24px; height: 24px; border-radius: 28%; object-fit: cover; background: #26315f; flex: none; }
 .chip-av.initial { width: 22px; height: 22px; font-size: .7rem; }
 .chip-off { font-size: .7rem; color: #fca5a5; }
 .chip.turn { animation: chipGlow 2s ease-in-out infinite; }
@@ -1209,16 +1213,16 @@ body.reduce-motion .midnight-pill.soon { animation: none; }
 
 /* ---------- HIASAN: bingkai foto ---------- */
 .p-avatar.framed { position: relative; }
-.p-avatar.fr-undangan { box-shadow: 0 0 0 2px var(--kunyit), 0 0 0 4px var(--nila-ink), 0 0 0 6px var(--cabai); }
-.p-avatar.fr-melati { box-shadow: 0 0 0 2px #fff8e6; outline: 3px dotted #fff8e6; outline-offset: 3px; }
-.p-avatar.fr-parang { box-shadow: 0 0 0 3px #3f8a5e, 0 0 0 5px var(--kunyit), 0 0 0 6.5px #3f8a5e; }
-.p-avatar.fr-mega { box-shadow: 0 0 0 3px #4a7fd0, 0 0 0 6px rgba(156,196,255,.45), 0 0 12px 2px rgba(74,127,208,.7); }
-.p-avatar.fr-cabai { box-shadow: 0 0 0 3px var(--cabai), 0 0 0 5px var(--kertas), 0 0 0 7.5px var(--cabai); }
-.p-avatar.fr-malam { box-shadow: 0 0 0 3px #4b2f7a, 0 0 0 5px #c6b3ff, 0 0 14px 3px rgba(138,92,240,.65); }
-.p-avatar.fr-emas { box-shadow: 0 0 0 3px #f6d77a, 0 0 0 5px #b8862a, 0 0 0 6.5px #f6d77a, 0 0 16px 4px rgba(242,193,78,.55); animation: frGlow 2.4s ease-in-out infinite; }
+.p-avatar.framed.fr-undangan { box-shadow: 0 0 0 2px var(--kunyit), 0 0 0 4px var(--nila-ink), 0 0 0 6px var(--cabai); }
+.p-avatar.framed.fr-melati { box-shadow: 0 0 0 2px #fff8e6; outline: 3px dotted #fff8e6; outline-offset: 3px; }
+.p-avatar.framed.fr-parang { box-shadow: 0 0 0 3px #3f8a5e, 0 0 0 5px var(--kunyit), 0 0 0 6.5px #3f8a5e; }
+.p-avatar.framed.fr-mega { box-shadow: 0 0 0 3px #4a7fd0, 0 0 0 6px rgba(156,196,255,.45), 0 0 12px 2px rgba(74,127,208,.7); }
+.p-avatar.framed.fr-cabai { box-shadow: 0 0 0 3px var(--cabai), 0 0 0 5px var(--kertas), 0 0 0 7.5px var(--cabai); }
+.p-avatar.framed.fr-malam { box-shadow: 0 0 0 3px #4b2f7a, 0 0 0 5px #c6b3ff, 0 0 14px 3px rgba(138,92,240,.65); }
+.p-avatar.framed.fr-emas { box-shadow: 0 0 0 3px #f6d77a, 0 0 0 5px #b8862a, 0 0 0 6.5px #f6d77a, 0 0 16px 4px rgba(242,193,78,.55); animation: frGlow 2.4s ease-in-out infinite; }
 @keyframes frGlow { 50% { filter: brightness(1.15); } }
-.reduce-motion .p-avatar.fr-emas { animation: none; }
-@media (prefers-reduced-motion: reduce) { .p-avatar.fr-emas { animation: none; } }
+.reduce-motion .p-avatar.framed.fr-emas { animation: none; }
+@media (prefers-reduced-motion: reduce) { .p-avatar.framed.fr-emas { animation: none; } }
 
 /* ---------- HIASAN: profil ---------- */
 .cosmetics { margin-top: 18px; text-align: left; }
@@ -1238,3 +1242,49 @@ body.reduce-motion .midnight-pill.soon { animation: none; }
 .cos-die i { width: 30px; height: 30px; border-radius: 50%; background: var(--b); box-shadow: inset 0 0 0 7px var(--b), inset 0 0 0 30px var(--m); }
 .cos-cloth { width: 58px; height: 58px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.12) 0 4px, transparent 5px) 0 0 / 14px 14px, var(--c); box-shadow: 0 0 0 3px #6b4a2a; }
 .rw-cos { margin: 4px 0 0; font-size: .82rem; color: var(--muted); }
+
+/* ---------- LEVEL ---------- */
+.lv-badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 7px; background: var(--nila-ink); border: 1.5px solid var(--kunyit); color: var(--kunyit); font: 800 .74rem var(--sans); font-variant-numeric: tabular-nums; letter-spacing: .01em; }
+.lv-badge.sm { padding: 0 6px; font-size: .66rem; border-width: 1px; }
+.lv-badge.hi { background: linear-gradient(135deg, #3a2a08, #6a4a10); }
+.lv-badge.max { background: linear-gradient(110deg, #b8862a, #f6d77a 45%, #e9b949); color: #3a2406; border-color: #fff2b8; }
+.lv-prog { display: grid; gap: 6px; margin: 14px 0 4px; padding: 12px 14px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--border); }
+.lv-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.lv-head b { font-family: var(--display); font-weight: 400; font-size: 1.25rem; color: var(--kunyit); }
+.lv-head small, .lv-next { color: var(--muted); font-size: .8rem; }
+.lv-up .lv-badge { font-size: .9rem; padding: 3px 10px; }
+.rw-item { display: flex; align-items: center; gap: 10px; }
+.rw-item .chip { font-size: .78rem; padding: 4px 10px; }
+
+/* ---------- HIASAN: foto & bar nama ---------- */
+.cos-item { position: relative; }
+.cos-item.special { border-color: rgba(200,50,42,.55); }
+.cos-flag { position: absolute; top: -8px; left: 50%; transform: translateX(-50%); padding: 1px 7px; border-radius: 6px; background: var(--cabai); color: #fff3ee; font-size: .62rem; font-weight: 800; white-space: nowrap; }
+.cos-row.plates { grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); }
+.plate-prev { pointer-events: none; max-width: 100%; overflow: hidden; }
+.plate-prev .chip-name { overflow: hidden; text-overflow: ellipsis; }
+img.p-avatar.lg { object-fit: cover; }
+
+/* ---------- BAR NAMA (chip pemain) ---------- */
+.chip.np { border: 0; }
+.chip.np .chip-cards, .chip.np .chip-cards .ic { color: inherit; opacity: .8; }
+.chip.np-kawung { background: radial-gradient(circle at 50% 50%, rgba(31,42,82,.14) 0 2.2px, transparent 2.6px) 0 0 / 10px 10px, var(--kertas); color: var(--nila-ink); }
+.chip.np-pita { background: linear-gradient(90deg, var(--cabai) 0 6px, var(--kunyit) 6px calc(100% - 6px), var(--cabai) calc(100% - 6px)); color: var(--nila-ink); }
+.chip.np-sogan { background: repeating-linear-gradient(135deg, rgba(246,238,220,.10) 0 3px, transparent 3px 9px), #5a3a22; color: var(--kertas); }
+.chip.np-parang { background: repeating-linear-gradient(45deg, rgba(246,238,220,.16) 0 4px, transparent 4px 11px), #2f6b4a; color: #f3fff6; }
+.chip.np-mega { background: radial-gradient(circle at 0 100%, transparent 7px, rgba(200,225,255,.22) 7px 9px, transparent 9px) 0 0 / 18px 14px, #2f5fa8; color: #fff; }
+.chip.np-songket { background: repeating-linear-gradient(0deg, rgba(242,193,78,.38) 0 1px, transparent 1px 5px), #6e1630; color: #ffe9b0; }
+.chip.np-malam { background: radial-gradient(circle, rgba(255,255,255,.7) 0 1px, transparent 1.5px) 3px 4px / 17px 13px, radial-gradient(circle, rgba(242,193,78,.7) 0 1px, transparent 1.5px) 11px 9px / 23px 15px, var(--nila); color: var(--kertas); box-shadow: inset 0 0 0 1px rgba(242,193,78,.6), 0 2px 0 rgba(0,0,0,.35); }
+.chip.np-giok { background: linear-gradient(135deg, #48b896, #1d6a58); color: #f2fffa; }
+.chip.np-prada { background: radial-gradient(circle, rgba(242,193,78,.75) 0 1px, transparent 1.6px) 0 0 / 9px 7px, #161616; color: var(--kunyit); box-shadow: inset 0 0 0 1.5px rgba(242,193,78,.75), 0 2px 0 rgba(0,0,0,.35); }
+.chip.np-bara { background: linear-gradient(90deg, #5a1206, #c8322a, #ff7a1a, #c8322a, #5a1206) 0 0 / 300% 100%; color: #fff6e8; animation: npSlide 5s linear infinite; }
+.chip.np-agung { background: linear-gradient(110deg, #b8862a, #f6d77a 30%, #e9b949 50%, #fff2b8 65%, #b8862a) 0 0 / 250% 100%; color: #3a2406; box-shadow: inset 0 0 0 1.5px #fff2b8, 0 2px 0 #7a5410; animation: npSlide 4s linear infinite; }
+.chip.np-juara { background: linear-gradient(#8a1c14, #5e0f0a); color: var(--kunyit); box-shadow: inset 0 0 0 1.5px var(--kunyit), inset 0 0 0 3px #5e0f0a, inset 0 0 0 4px rgba(242,193,78,.6), 0 2px 0 rgba(0,0,0,.35); }
+.chip.np-mata { background: radial-gradient(ellipse 5px 3px, rgba(217,198,255,.55) 0 60%, transparent 70%) 0 0 / 16px 12px, #2a1a4a; color: #e6dbff; }
+.chip.np-sapu { background: repeating-linear-gradient(135deg, var(--cabai) 0 7px, #9e231b 7px 14px); color: #fff3ee; }
+@keyframes npSlide { to { background-position: 300% 0; } }
+.reduce-motion .chip.np-bara, .reduce-motion .chip.np-agung { animation: none; }
+@media (prefers-reduced-motion: reduce) { .chip.np-bara, .chip.np-agung { animation: none; } }
+/* giliran & tersingkir tetap jelas apa pun coraknya */
+.chip.np.turn { box-shadow: 0 0 0 3px var(--kunyit), 0 0 18px 2px rgba(242,193,78,.65); transform: rotate(-2deg); }
+.chip.np.dead { filter: grayscale(.85) brightness(.75); opacity: .75; box-shadow: none; }
