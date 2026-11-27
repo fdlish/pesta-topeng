@@ -10,6 +10,22 @@ import { getPortrait } from './portraits.js';
 
 // ---------- palet ----------
 const FELT = { papua: '#e4ecf2', sulawesi: '#d9a62e', jawa: '#2f63b8', sumatera: '#c2413a', kalimantan: '#2f8f57' };
+const CLOTHS = {
+  nila: { base: '#18224a', fill: 'rgba(120,150,220,.09)', line: 'rgba(242,193,78,.06)' },
+  sogan: { base: '#3b2415', fill: 'rgba(230,190,130,.10)', line: 'rgba(246,238,220,.06)' },
+  hijau: { base: '#173f2c', fill: 'rgba(150,220,170,.08)', line: 'rgba(242,193,78,.07)' },
+  marun: { base: '#3e1220', fill: 'rgba(240,140,150,.09)', line: 'rgba(242,193,78,.07)' },
+  hitam: { base: '#111114', fill: 'rgba(242,193,78,.10)', line: 'rgba(242,193,78,.12)' },
+};
+const DIE_SKINS = {
+  klasik: { trim: '#efe5d0', base: '#17181d', mask: '#F2C14E' },
+  cabai: { trim: '#C8322A', base: '#17181d', mask: '#F2C14E' },
+  perak: { trim: '#c9cfd6', base: '#22262e', mask: '#eef2f6', metal: 0.3 },
+  nila: { trim: '#26346a', base: '#0d1124', mask: '#F2C14E' },
+  giok: { trim: '#3f9a7a', base: '#10261e', mask: '#e9f5ee' },
+  emas: { trim: '#e2b54a', base: '#2a2110', mask: '#f6d77a', metal: 0.35 },
+  dalang: { trim: '#17181d', base: '#2a0d0d', mask: '#C8322A' },
+};
 const INK_ON = { papua: '#1d2633', sulawesi: '#3b2a08' }; // teks tinta gelap di felt terang (kontras)
 const CREAM = '#f3ead7', INK = '#1d2633', BRASS = '#c9a14a';
 const FIG_COLORS = ['#b23a48', '#2e6f95', '#3d8b5e', '#c98a2b', '#6a4c93', '#d1603d', '#1f7a7a', '#8f2d56', '#4a6fa5', '#9a7b2f',
@@ -122,21 +138,9 @@ export class Board3D {
   // ================= scene =================
   buildTable() {
     // taplak batik nila bermotif kawung (nada-ke-nada, tidak bersaing dengan papan)
-    const felt = canvasTex(512, 512, (g, w, h) => {
-      g.fillStyle = '#18224a'; g.fillRect(0, 0, w, h);
-      speckle(g, w, h, 22000, 'rgba(255,255,255,.03)', 'rgba(0,0,0,.08)');
-      const step = w / 4;
-      g.fillStyle = 'rgba(120,150,220,.09)'; g.strokeStyle = 'rgba(242,193,78,.06)'; g.lineWidth = 2;
-      for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) {
-        const cx = (x + (y % 2) * 0.5) * step, cy = (y + 0.5) * step;
-        for (const ox of [0, w]) for (let k = 0; k < 4; k++) {
-          const a = k * Math.PI / 2 + Math.PI / 4;
-          g.beginPath(); g.ellipse(cx - ox + Math.cos(a) * step * 0.24, cy + Math.sin(a) * step * 0.24, step * 0.2, step * 0.12, a, 0, Math.PI * 2); g.fill(); g.stroke();
-        }
-      }
-    });
-    felt.wrapS = felt.wrapT = THREE.RepeatWrapping; felt.repeat.set(7, 7);
+    const felt = this.clothTex('nila');
     const table = new THREE.Mesh(new THREE.CircleGeometry(19, 96), new THREE.MeshStandardMaterial({ map: felt, roughness: 1 }));
+    this.tableMesh = table; this.clothKey = 'nila';
     table.rotation.x = -Math.PI / 2; table.position.y = -0.55; table.receiveShadow = true;
     const edge = new THREE.Mesh(new THREE.TorusGeometry(19, 0.45, 16, 120), this.shared.walnut);
     edge.rotation.x = Math.PI / 2; edge.position.y = -0.5;
@@ -422,6 +426,54 @@ export class Board3D {
   portrait(id) { return getPortrait(id); }
 
   // Dadu prisma segi lima bertepi membulat (seperti dadu mainan enamel):
+  // Taplak meja (kosmetik pribadi). Motif kawung, warna dasar berbeda per taplak.
+  clothTex(key) {
+    const C = CLOTHS[key] || CLOTHS.nila;
+    const felt = canvasTex(512, 512, (g, w, h) => {
+      g.fillStyle = C.base; g.fillRect(0, 0, w, h);
+      speckle(g, w, h, 22000, 'rgba(255,255,255,.03)', 'rgba(0,0,0,.08)');
+      const step = w / 4;
+      g.fillStyle = C.fill; g.strokeStyle = C.line; g.lineWidth = 2;
+      for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) {
+        const cx = (x + (y % 2) * 0.5) * step, cy = (y + 0.5) * step;
+        for (const ox of [0, w]) for (let k = 0; k < 4; k++) {
+          const a = k * Math.PI / 2 + Math.PI / 4;
+          g.beginPath(); g.ellipse(cx - ox + Math.cos(a) * step * 0.24, cy + Math.sin(a) * step * 0.24, step * 0.2, step * 0.12, a, 0, Math.PI * 2); g.fill(); g.stroke();
+        }
+      }
+    });
+    felt.wrapS = felt.wrapT = THREE.RepeatWrapping; felt.repeat.set(7, 7);
+    return felt;
+  }
+  setCloth(key) {
+    if (!CLOTHS[key]) key = 'nila';
+    if (!this.tableMesh || this.clothKey === key) return;
+    this.clothKey = key;
+    const old = this.tableMesh.material.map;
+    this.tableMesh.material.map = this.clothTex(key); this.tableMesh.material.needsUpdate = true;
+    old && old.dispose(); this.dirty = true;
+  }
+  // Corak dadu milik pemain yang sedang giliran. Warna panel pulau tidak pernah berubah.
+  setDieSkin(key) {
+    const k = DIE_SKINS[key] ? key : 'klasik';
+    if (!this.die || this.dieSkin === k) return;
+    this.dieSkin = k;
+    const sk = DIE_SKINS[k], col = this.die.geometry.attributes.color;
+    const trim = new THREE.Color(sk.trim), cap = new THREE.Color(sk.base);
+    for (const i of this.dieTrimIdx) col.setXYZ(i, trim.r, trim.g, trim.b);
+    for (const i of this.dieCapIdx) col.setXYZ(i, cap.r, cap.g, cap.b);
+    col.needsUpdate = true;
+    this.die.material.metalness = sk.metal || 0; this.die.material.needsUpdate = true;
+    const old = this.dieCapMat.map; this.dieCapMat.map = this.capTex(sk.mask); this.dieCapMat.needsUpdate = true; old && old.dispose();
+    this.dirty = true;
+  }
+  capTex(color) {
+    return canvasTex(256, 256, (g, w, h) => { // topeng dengan bentuk yang sama seperti logo
+      const mask = new Path2D('M2 7C10 1 22 2 32 10C42 2 54 1 62 7C64 22 56 34 44 34C38 34 35 27 32 27C29 27 26 34 20 34C8 34 0 22 2 7ZM12 17C14 13 21 13 25 17C21 21 15 21 12 17ZM39 17C43 13 50 13 52 17C49 21 43 21 39 17Z');
+      g.save(); g.translate(w / 2 - 64 * 3.1 / 2, h / 2 - 40 * 3.1 / 2 + 6); g.scale(3.1, 3.1); g.fillStyle = color; g.fill(mask, 'evenodd'); g.restore();
+    });
+  }
+
   // 5 sisi panjang = warna pulau (sama persis dengan papan), 2 ujung = hitam bertopeng kunyit.
   // Tanpa tulisan kecil di dadu: warna sudah jadi kodenya, nama pulau tampil besar di banner.
   buildDie() {
@@ -449,6 +501,7 @@ export class Board3D {
     DIE_SIDES.forEach(f => { col[f] = new THREE.Color(FELT[f]); });
     const A = new THREE.Vector3(), B = new THREE.Vector3(), C = new THREE.Vector3(), n = new THREE.Vector3();
     const sector = Math.PI * 2 / 5;
+    this.dieTrimIdx = []; this.dieCapIdx = []; this.dieSkin = 'klasik';
     for (let i = 0; i < pos.count; i += 3) {
       A.fromBufferAttribute(pos, i); B.fromBufferAttribute(pos, i + 1); C.fromBufferAttribute(pos, i + 2);
       n.subVectors(C, B).cross(A.clone().sub(B)).normalize();
@@ -460,7 +513,7 @@ export class Board3D {
         const idx = Math.floor(ang / sector) % 5, dev = Math.abs(ang - (idx + 0.5) * sector);
         c = dev > 0.1 ? col.trim : col[DIE_SIDES[idx]];
       }
-      for (let k = 0; k < 3; k++) colors.set([c.r, c.g, c.b], (i + k) * 3);
+      for (let k = 0; k < 3; k++) { colors.set([c.r, c.g, c.b], (i + k) * 3); if (c === col.trim) this.dieTrimIdx.push(i + k); else if (c === col.cap) this.dieCapIdx.push(i + k); }
     }
     geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     const mat = new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.3, clearcoat: 0.9, clearcoatRoughness: 0.18 });
@@ -488,11 +541,9 @@ export class Board3D {
       this.die.add(m);
     });
     // ujung hitam: topeng kunyit
-    const capTex = canvasTex(256, 256, (g, w, h) => { // topeng dengan bentuk yang sama seperti logo
-      const mask = new Path2D('M2 7C10 1 22 2 32 10C42 2 54 1 62 7C64 22 56 34 44 34C38 34 35 27 32 27C29 27 26 34 20 34C8 34 0 22 2 7ZM12 17C14 13 21 13 25 17C21 21 15 21 12 17ZM39 17C43 13 50 13 52 17C49 21 43 21 39 17Z');
-      g.save(); g.translate(w / 2 - 64 * 3.1 / 2, h / 2 - 40 * 3.1 / 2 + 6); g.scale(3.1, 3.1); g.fillStyle = '#F2C14E'; g.fill(mask, 'evenodd'); g.restore();
-    });
+    const capTex = this.capTex('#F2C14E');
     const capMat = new THREE.MeshStandardMaterial({ map: capTex, transparent: true, roughness: 0.35, depthWrite: false });
+    this.dieCapMat = capMat;
     const capPlane = new THREE.PlaneGeometry(apo * 1.55, apo * 1.55);
     for (const sgn of [1, -1]) {
       const m = new THREE.Mesh(capPlane, capMat);

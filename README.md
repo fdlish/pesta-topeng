@@ -45,7 +45,16 @@ Dadu berbentuk **prisma segi lima dengan 7 sisi**: 5 sisi panjang PAPUA, SULAWES
   - *Legendaris*: Legenda Pesta (**100 pesta**), Dalang Agung (50 menang), Bayangan, Topeng Emas, Kolektor Gelar (15 gelar lain).
 - Pilih gelar di **Profil → Gelar & misi**. Gelar tampil di lobby, papan peringkat/podium, dan kartu profil saat nama pemain diketuk.
 - Progres hanya dihitung di pesta dengan minimal 2 pemain manusia (latihan lawan bot tidak dihitung). Statistik lama pemain otomatis dihitung sekali ke misi kumulatif.
-- Supabase: kolom `profiles.progress jsonb` dan `profiles.title text` (lihat `supabase/schema.sql`).
+- Supabase: kolom `profiles.progress jsonb`, `profiles.title text`, dan `profiles.cosmetics jsonb` (lihat `supabase/schema.sql`).
+
+## Tantangan harian, hiasan, kartu hasil
+- **Tantangan harian** (`daily.js`): 3 tantangan (mudah +15, sedang +30, sulit +60 poin) yang sama untuk semua pemain, berganti pukul 00.00 WIB. Bonus langsung masuk ke poin pesta saat tantangan selesai, tampil di rincian poin. Strip "Tantangan hari ini" ada di beranda; daftar lengkap di Profil.
+- **Hiasan** (`cosmetics.js`), dibuka bersama gelar:
+  - *Bingkai foto* (7): terlihat di lobby, peringkat, dan profil.
+  - *Corak dadu* (6): dadu di papan memakai corak milik pemain yang sedang giliran. Warna sisi pulau tidak pernah berubah.
+  - *Taplak meja* (4): hanya untuk tampilan sendiri.
+  - Warna alas bidak sengaja tidak dibuat, karena akan membocorkan identitas rahasia.
+- **Kartu hasil** (`public/sharecard.js`): gambar 1080×1350 di akhir pesta berisi tokohmu, posisi, angka, gelar pesta, misi rahasia, dan gelar baru. Bisa dibagikan langsung (WhatsApp/Story lewat menu bagikan HP), disimpan, atau disalin sebagai teks.
 
 ## Pengalaman bermain (polesan v2)
 - **Musik latar generatif**, bergaya *masquerade lounge*: progresi jazz ii–V–I, bas, sikat drum, dan melodi acak, jadi tidak pernah berulang persis. Tempo dan perkusi naik saat tersisa 2 pemain. Dibuat dengan WebAudio, tanpa file. Musik berhenti saat tab disembunyikan.

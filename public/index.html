@@ -70,6 +70,7 @@
     </div>
 
     <div class="home-main">
+    <button id="dailyStrip" class="daily-strip hidden" type="button"></button>
     <div class="tabs" role="tablist" aria-label="Menu">
       <button role="tab" id="tab-play" aria-controls="panel-play" aria-selected="true" class="tab"><svg class="ic sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-5h4v5"/></svg>Gabung</button>
       <button role="tab" id="tab-rank" aria-controls="panel-rank" aria-selected="false" class="tab" tabindex="-1"><svg class="ic sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg>Peringkat</button>
@@ -229,6 +230,19 @@
 
   <!-- GAME OVER -->
 
+  <!-- KARTU HASIL -->
+  <div id="shareModal" class="modal share-modal hidden" role="dialog" aria-modal="true" aria-labelledby="shareTitle">
+    <div class="modal-card share-card">
+      <button id="shareClose" class="icon-btn sm player-close" type="button" aria-label="Tutup"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      <h2 id="shareTitle">Kartu hasil pesta</h2>
+      <div class="share-preview"><img id="shareImg" alt="Kartu hasil pesta"><p id="shareLoading" class="muted">Menggambar kartu…</p></div>
+      <div class="share-actions">
+        <button id="shareSend" class="btn primary" type="button">Bagikan gambar</button>
+        <button id="shareSave" class="btn" type="button">Simpan gambar</button>
+        <button id="shareCopy" class="link-btn" type="button">Salin teks hasil</button>
+      </div>
+    </div>
+  </div>
   <!-- PROFIL PEMAIN LAIN -->
   <div id="playerModal" class="modal hidden" role="dialog" aria-modal="true" aria-label="Profil pemain">
     <div class="modal-card player-card">
@@ -297,7 +311,7 @@
       <ul id="revealList" class="plist compact reveal-list standings"></ul>
       <section id="recapAwards" class="recap hidden" aria-label="Gelar pesta"><h3 class="recap-h">Gelar pesta</h3><div class="award-grid"></div></section>
       <section id="recapMoments" class="recap hidden" aria-label="Momen pesta"><h3 class="recap-h">Momen pesta</h3><ol class="moments"></ol><p class="recap-foot"></p></section>
-      <button id="shareResultBtn" class="btn small share-result" type="button"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/><path d="m16 6-4-4-4 4"/><path d="M12 2v13"/></svg><span>Bagikan hasil</span></button>
+      <button id="shareResultBtn" class="btn small share-result" type="button"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/><path d="m16 6-4-4-4 4"/><path d="M12 2v13"/></svg><span>Bagikan kartu hasil</span></button>
       <button id="againBtn" class="btn primary">Pesta lagi, pemain sama</button>
       <button id="toLobbyBtn" class="link-btn to-lobby" type="button">atau kembali ke lobby dulu</button>
       <p id="waitHost" class="muted center wait-host hidden"></p>

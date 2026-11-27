@@ -25,7 +25,8 @@ export const acct = { mode: 'local', signedIn: false, needsUsername: false, prof
 let visibility = 'public', rooms = [], lb = null, lbLoading = false, activeTab = 'play', afterName = null;
 
 // ---------------------------------------------------------------- avatar ---
-export function avatar(name, url, cls = 'p-avatar') {
+export function avatar(name, url, cls = 'p-avatar', frame = null) {
+  if (frame && frame !== 'polos') cls += ` framed fr-${frame}`;
   const fallback = () => { const a = el('span', cls, (name || '?').trim().slice(0, 1).toUpperCase()); a.style.setProperty('--h', hue(name || '?')); a.setAttribute('aria-hidden', 'true'); return a; };
   if (!url) return fallback();
   const im = el('img', cls + ' photo'); im.alt = ''; im.referrerPolicy = 'no-referrer'; im.loading = 'lazy'; im.decoding = 'async'; im.src = url;
@@ -75,6 +76,8 @@ export function initHome(config, deps) {
   D.socket.on('me', me => applyMe({ ...me, rank: acct.rank }));
   renderAccount();
   renderRooms();
+  refreshDaily();
+  $('#dailyStrip').onclick = () => { if (acct.profile) { selectTab('me'); setTimeout(() => document.querySelector('.daily')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80); } else signIn(); };
 }
 
 async function signIn() {
@@ -90,6 +93,7 @@ export function applyMe(me, opts = {}) {
   Object.assign(acct, { signedIn: !!me.signedIn, needsUsername: !!me.needsUsername, profile: me.profile || null, rank: me.rank ?? acct.rank, suggestion: me.suggestion || '' });
   if (!acct.signedIn) acct.rank = null;
   renderAccount();
+  refreshDaily();
   if (activeTab === 'me') renderProfile();
   if (activeTab === 'rank' && lb) renderLeaderboard();
   if (acct.needsUsername && (opts.fresh || !wasSigned) && !$('#game').offsetParent) openNameDialog();
@@ -116,7 +120,7 @@ function renderAccount() {
   }
   const chip = el('button', 'me-chip');
   chip.setAttribute('aria-label', `Profil ${p.username}, ${fmt(p.points)} poin`);
-  chip.append(avatar(p.username, p.avatarUrl, 'p-avatar sm'));
+  chip.append(avatar(p.username, p.avatarUrl, 'p-avatar sm', p.cos?.frame));
   const t = el('span', 'me-text');
   t.append(el('b', null, p.username), el('small', null, `#${p.publicId} · ${fmt(p.points)} poin`));
   chip.append(t);
@@ -294,7 +298,7 @@ function renderLeaderboard(animate) {
       d.append(av, el('b', 'pod-name muted', 'Kursi kosong'), el('span', 'pod-pts', '—'), el('div', 'pod-block', String(place)));
       return d;
     }
-    const av = el('div', 'pod-av'); av.append(avatar(r.username, r.avatarUrl, 'p-avatar lg'));
+    const av = el('div', 'pod-av'); av.append(avatar(r.username, r.avatarUrl, 'p-avatar lg', r.cos?.frame));
     if (place === 1) { const c = el('span', 'pod-crown'); c.innerHTML = IC.crown; av.append(c); }
     d.append(av, el('b', 'pod-name', r.username));
     if (r.title) d.append(titleBadge(r.title, true));
@@ -318,7 +322,7 @@ function renderLeaderboard(animate) {
 function lbRow(r, mine, tag = 'li') {
   const li = el(tag, 'lb-row' + (mine ? ' me' : ''));
   li.append(el('span', 'lb-rank', '#' + r.rank));
-  li.append(avatar(r.username, r.avatarUrl, 'p-avatar sm'));
+  li.append(avatar(r.username, r.avatarUrl, 'p-avatar sm', r.cos?.frame));
   const who = el('span', 'lb-who'); who.append(el('b', null, r.username + (mine ? ' (kamu)' : '')));
   const sub = el('small'); sub.append(`#${r.publicId} · ${r.wins} menang · `, tierBadge(r.tier, true)); who.append(sub);
   if (r.title) who.append(titleBadge(r.title, true));
@@ -356,7 +360,7 @@ async function renderProfile(fetchStats) {
   const p = acct.profile;
   const card = el('div', 'profile-card');
   const top = el('div', 'pc-top');
-  top.append(avatar(p.username, p.avatarUrl, 'p-avatar xl'));
+  top.append(avatar(p.username, p.avatarUrl, 'p-avatar xl', p.cos?.frame));
   const who = el('div', 'pc-who');
   who.append(el('h2', null, p.username));
   const idb = el('button', 'id-pill'); idb.setAttribute('aria-label', `Salin ID ${p.publicId}`);
@@ -391,7 +395,7 @@ async function renderProfile(fetchStats) {
     ul.append(li);
   });
   recentWrap.append(ul); card.append(recentWrap);
-  card.append(missionSection());
+  card.append(dailySection(), cosmeticSection(), missionSection());
   const act = el('div', 'pc-actions');
   const eb = el('button', 'btn'); eb.innerHTML = IC.edit; eb.append(el('span', null, 'Ubah nama')); eb.onclick = () => openNameDialog(true);
   const ob = el('button', 'btn ghost'); ob.innerHTML = IC.out; ob.append(el('span', null, 'Keluar')); ob.onclick = async () => { await Auth.signOut(); stats = null; D.toast('Kamu sudah keluar'); };
@@ -399,9 +403,99 @@ async function renderProfile(fetchStats) {
   v.append(card);
   if (fetchStats) {
     const [r, m] = await Promise.all([new Promise(res => D.socket.emit('my_stats', {}, res)), new Promise(res => D.socket.emit('my_missions', {}, res))]);
-    if (m && !m.error) myMissions = m;
+    if (m && !m.error) { myMissions = m; daily = m.daily; renderDailyStrip(); }
     if (r && !r.error) { stats = r; acct.rank = r.rank; acct.profile = r.profile; renderAccount(); if (activeTab === 'me') renderProfile(false); }
   }
+}
+
+// ------------------------------------------------- tantangan harian ---
+let daily = null, dailyT = null;
+async function refreshDaily() {
+  clearTimeout(dailyT);
+  try {
+    if (acct.profile && D.socket.connected) {
+      const m = await new Promise(res => D.socket.emit('my_missions', {}, res));
+      if (m && !m.error) { myMissions = m; daily = m.daily; }
+    } else daily = await (await fetch('/api/daily')).json();
+  } catch {}
+  renderDailyStrip();
+  if (daily) dailyT = setTimeout(refreshDaily, Math.min(daily.resetsIn + 2000, 6 * 3600e3)); // ganti hari otomatis
+}
+const leftText = ms => { const h = Math.floor(ms / 3600e3), m = Math.floor((ms % 3600e3) / 60e3); return h ? `${h} jam ${m} mnt` : `${m} mnt`; };
+function renderDailyStrip() {
+  const b = $('#dailyStrip');
+  if (!daily) return b.classList.add('hidden');
+  b.classList.remove('hidden'); b.replaceChildren();
+  const done = daily.list.filter(c => c.done).length, got = daily.list.filter(c => c.done).reduce((s, c) => s + c.pts, 0);
+  const total = daily.list.reduce((s, c) => s + c.pts, 0);
+  const dots = el('span', 'ds-dots');
+  daily.list.forEach(c => { const d = el('i', `ds-dot tt-${c.tier}` + (c.done ? ' on' : '')); d.title = c.text; dots.append(d); });
+  const t = el('span', 'ds-text');
+  t.append(el('b', null, 'Tantangan hari ini'), el('small', null, acct.profile ? (done === 3 ? `Semua selesai, +${got} poin. Ganti dalam ${leftText(daily.resetsIn)}` : `${done}/3 selesai · bonus sampai +${total} poin`) : `Masuk untuk ikut, bonus sampai +${total} poin`));
+  b.append(dots, t, el('span', 'ds-go', acct.profile ? 'Lihat' : 'Masuk'));
+  b.setAttribute('aria-label', `Tantangan hari ini, ${done} dari 3 selesai`);
+}
+function dailySection() {
+  const wrap = el('section', 'daily');
+  const head = el('div', 'ms-head');
+  head.append(el('h3', null, 'Tantangan hari ini'), el('span', 'muted', daily ? `ganti dalam ${leftText(daily.resetsIn)}` : 'Memuat…'));
+  wrap.append(head);
+  if (!daily) return wrap;
+  const ul = el('ul', 'dl-list');
+  for (const c of daily.list) {
+    const li = el('li', `dl-item tt-${c.tier}` + (c.done ? ' done' : ''));
+    const main = el('div', 'ms-main');
+    main.append(el('span', 'dl-tier', TIER_LABEL[c.tier]), el('span', 'dl-text', c.text));
+    const bar = el('div', 'ms-bar'); bar.setAttribute('role', 'progressbar'); bar.setAttribute('aria-valuemin', '0'); bar.setAttribute('aria-valuemax', String(c.goal)); bar.setAttribute('aria-valuenow', String(c.now)); bar.setAttribute('aria-label', c.text);
+    const fill = el('i'); fill.style.width = `${Math.min(100, (c.now / c.goal) * 100)}%`; bar.append(fill);
+    const pr = el('div', 'ms-prog'); pr.append(bar, el('small', null, `${c.now}/${c.goal}`)); main.append(pr);
+    li.append(main, el('span', 'dl-pts', c.done ? 'Selesai' : `+${c.pts}`));
+    ul.append(li);
+  }
+  wrap.append(ul, el('p', 'ms-note', 'Berganti setiap pukul 00.00 WIB. Bonus poin langsung masuk saat pesta selesai.'));
+  return wrap;
+}
+
+// ------------------------------------------------------------ hiasan ---
+const COS_KIND = { frame: ['Bingkai foto', 'Terlihat semua orang di lobby, peringkat, dan profilmu.'], dice: ['Corak dadu', 'Tampil di papan semua pemain saat giliranmu.'], cloth: ['Taplak meja', 'Hanya untuk tampilan papanmu sendiri.'] };
+const DICE_SW = { klasik: ['#efe5d0', '#17181d', '#F2C14E'], cabai: ['#C8322A', '#17181d', '#F2C14E'], perak: ['#c9cfd6', '#22262e', '#eef2f6'], nila: ['#26346a', '#0d1124', '#F2C14E'], giok: ['#3f9a7a', '#10261e', '#e9f5ee'], emas: ['#e2b54a', '#2a2110', '#f6d77a'], dalang: ['#17181d', '#2a0d0d', '#C8322A'] };
+const CLOTH_SW = { nila: '#18224a', sogan: '#3b2415', hijau: '#173f2c', marun: '#3e1220', hitam: '#111114' };
+function cosPreview(it) {
+  if (it.kind === 'frame') return avatar(acct.profile?.username, acct.profile?.avatarUrl, 'p-avatar lg', it.key);
+  if (it.kind === 'dice') { const [t, b, m] = DICE_SW[it.key] || DICE_SW.klasik; const d = el('span', 'cos-die'); d.style.setProperty('--t', t); d.style.setProperty('--b', b); d.style.setProperty('--m', m); d.append(el('i')); return d; }
+  const c = el('span', 'cos-cloth'); c.style.setProperty('--c', CLOTH_SW[it.key] || CLOTH_SW.nila); return c;
+}
+function cosmeticSection() {
+  const wrap = el('section', 'cosmetics');
+  const head = el('div', 'ms-head');
+  const list = myMissions?.cosmetics;
+  head.append(el('h3', null, 'Hiasan'), el('span', 'muted', list ? `${list.filter(i => i.owned).length} dari ${list.length} terbuka` : 'Memuat…'));
+  wrap.append(head, el('p', 'ms-note', 'Hiasan terbuka bersama gelar. Tidak mengubah aturan main.'));
+  if (!list) return wrap;
+  const titleName = k => (CONFIG.missions?.missions || []).find(m => m.key === k)?.title || k;
+  for (const kind of ['frame', 'dice', 'cloth']) {
+    const g = el('div', 'cos-group');
+    g.append(el('h4', null, COS_KIND[kind][0]), el('p', 'cos-help', COS_KIND[kind][1]));
+    const row = el('div', 'cos-row');
+    for (const it of list.filter(i => i.kind === kind)) {
+      const b = el('button', 'cos-item' + (it.on ? ' on' : '') + (it.owned ? '' : ' locked'));
+      b.type = 'button'; b.setAttribute('aria-pressed', String(it.on));
+      b.append(cosPreview(it), el('span', 'cos-name', it.name), el('small', 'cos-sub', it.on ? 'Dipakai' : it.owned ? 'Pakai' : `Gelar ${titleName(it.unlock)}`));
+      b.setAttribute('aria-label', `${COS_KIND[kind][0]} ${it.name}` + (it.owned ? '' : `, terkunci, buka dengan gelar ${titleName(it.unlock)}`));
+      b.onclick = () => it.owned ? (it.on || setCosmetic(kind, it.key)) : D.toast(`Selesaikan misi "${titleName(it.unlock)}" untuk membuka ${it.name}.`);
+      row.append(b);
+    }
+    g.append(row); wrap.append(g);
+  }
+  return wrap;
+}
+async function setCosmetic(kind, key) {
+  const r = await new Promise(res => D.socket.emit('set_cosmetic', { kind, key }, res));
+  if (!r || r.error) return D.toast(r?.error || 'Gagal memakai hiasan');
+  if (myMissions) myMissions.cosmetics = r.cosmetics;
+  applyMe(r); lb = null;
+  D.onCosmetics && D.onCosmetics();
+  D.toast('Hiasan dipakai');
 }
 
 // ------------------------------------------------------- misi & gelar ---
@@ -464,7 +558,7 @@ export async function openPlayer(publicId) {
   if (!r || !r.profile) { body.replaceChildren(el('p', 'muted center', 'Profil tidak ditemukan.')); return; }
   const p = r.profile;
   const top = el('div', 'pc-top');
-  top.append(avatar(p.username, p.avatarUrl, 'p-avatar xl'));
+  top.append(avatar(p.username, p.avatarUrl, 'p-avatar xl', p.cos?.frame));
   const who = el('div', 'pc-who'); who.append(el('h2', null, p.username), el('span', 'id-pill static', '#' + p.publicId), tierBadge(p.tier));
   if (p.title) who.append(titleBadge(p.title));
   top.append(who);
@@ -584,8 +678,9 @@ function revealId(p) {
 
 // ------------------------------------------------- hadiah di layar akhir ---
 let reward = null;
-export function setReward(r) { reward = r; lb = null; if (r && r.rank) acct.rank = r.rank; }
+export function setReward(r) { reward = r; lb = null; if (r && r.rank) acct.rank = r.rank; if (r && r.missions) refreshDaily(); }
 export function clearReward() { reward = null; }
+export function getReward() { return reward; }
 export function renderReward(state, meId) {
   const box = $('#rewardBox');
   const mine = state.standings && state.standings.find(s => s.id === meId);
@@ -627,10 +722,13 @@ export function renderReward(state, meId) {
   if (ms && !meP.guest) {
     const m = el('div', 'rw-missions');
     if (ms.secret) m.append(el('p', 'rw-secret ' + (ms.secret.done ? 'ok' : 'no'), (ms.secret.done ? 'Misi rahasia selesai: ' : 'Misi rahasia gagal: ') + ms.secret.text));
+    for (const c of ms.daily || []) m.append(el('p', 'rw-secret ok', `Tantangan harian selesai: ${c.text} (+${c.pts})`));
     for (const t of ms.unlocked || []) {
       const u = el('div', 'rw-unlock'); u.append(el('span', null, 'Gelar baru terbuka!'), titleBadge(t));
       const b = el('button', 'link-btn', 'Pakai sekarang'); b.onclick = () => { setTitle(t.key); b.remove(); }; u.append(b);
       m.append(u);
+      const cos = (CONFIG.cosmetics || []).filter(c => c.unlock === t.key);
+      if (cos.length) m.append(el('p', 'rw-cos', `Hiasan baru: ${cos.map(c => `${c.name} (${COS_KIND[c.kind][0].toLowerCase()})`).join(', ')}. Pasang di Profil.`));
     }
     if ((ms.unlocked || []).length) D.sfx.win && setTimeout(() => D.sfx.win(), 900);
     if (m.childNodes.length) box.append(m);

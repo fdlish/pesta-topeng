@@ -9,6 +9,8 @@ const G = require('./game');
 const LAYOUT = require('./layout');
 const SCORING = require('./scoring');
 const MISSIONS = require('./missions');
+const DAILY = require('./daily');
+const COSMETICS = require('./cosmetics');
 const { createStore, pub, withRanks, StoreError, validateUsername } = require('./store');
 
 const store = createStore();
@@ -47,7 +49,7 @@ app.use('/vendor/fonts', express.static('node_modules/@fontsource', { maxAge: '3
 app.use('/vendor/three', express.static('node_modules/three', { maxAge: '7d' }));
 app.use('/vendor/supabase', express.static('node_modules/@supabase/supabase-js/dist/umd', { maxAge: '7d' }));
 app.get('/health', (_, res) => res.send('ok'));
-app.get('/config', (_, res) => res.json({ ...store.clientConfig(), missions: MISSIONS.catalog(), scoring: { rules: SCORING.RULES, tiers: SCORING.TIERS, table: SCORING.table(G.MIN_PLAYERS, G.MAX_PLAYERS) } }));
+app.get('/config', (_, res) => res.json({ ...store.clientConfig(), missions: MISSIONS.catalog(), cosmetics: COSMETICS.catalog(), scoring: { rules: SCORING.RULES, tiers: SCORING.TIERS, table: SCORING.table(G.MIN_PLAYERS, G.MAX_PLAYERS) } }));
 
 // ---- Papan peringkat (cache singkat agar hemat kuota free-tier) ----
 let lbCache = null;
@@ -61,6 +63,7 @@ app.get('/api/leaderboard', async (_, res) => {
   try { const lb = await getLeaderboard(); res.set('Cache-Control', 'public, max-age=10').json({ rows: lb.rows, updatedAt: lb.at }); }
   catch (e) { console.error('leaderboard', e.message); res.status(503).json({ error: 'Papan peringkat sedang tidak tersedia' }); }
 });
+app.get('/api/daily', (req, res) => res.json(DAILY.view(null)));
 app.get('/api/player/:publicId', async (req, res) => {
   const id = String(req.params.publicId || '').toUpperCase();
   if (!/^[A-Z0-9]{5}$/.test(id)) return res.status(400).json({ error: 'ID tidak valid' });
@@ -116,31 +119,41 @@ async function awardRoom(room) {
     .map(s => ({ ...s, p: G.player(g, s.id) }))
     .filter(s => s.p && s.p.uid && !s.practice); // latihan lawan bot tidak dicatat
   if (!ranked.length) return;
+  // 1) misi, gelar & tantangan harian dihitung dari profil SEBELUM pesta ini
+  for (const s of ranked) {
+    try {
+      const before = await store.getProfile(s.p.uid);
+      const st = (g.stat && g.stat[s.p.id]) || {};
+      const sec = G.secretStatus(g, s.p, true);
+      const x = { won: g.winnerId === s.p.id, placement: s.placement, players: n, unmasks: s.unmasks || 0, cards: st.cards || 0,
+        accuseHits: st.accuseHits || 0, selfMoves: st.selfMoves || 0, otherMoves: st.otherMoves || 0, aloneTurns: st.aloneTurns || 0,
+        midnight: !!g.midnight, atMidnight: !!st.atMidnight, secretDone: !!(sec && sec.done) };
+      const base = { games: before?.games || 0, wins: before?.wins || 0, unmasks: before?.unmasks || 0 };
+      const r = MISSIONS.apply(before?.progress, x, base);
+      const d = DAILY.apply(before?.progress, x);
+      r.progress.daily = d.daily;
+      s.progress = r.progress;
+      s.missions = { secret: sec, unlocked: r.unlocked.map(MISSIONS.titleOf), daily: d.completed };
+      if (d.bonus) { // bonus tantangan harian masuk ke poin pesta ini
+        const row = g.standings.find(x => x.id === s.id);
+        for (const c of d.completed) row.breakdown.push({ key: 'daily', label: `Tantangan harian: ${c.text}`, pts: c.pts });
+        row.points += d.bonus; s.points = row.points;
+      }
+    } catch (e) { console.error('missions', e.message); }
+  }
+  sync(room);
   try {
     await store.awardMatch(room.code, n, ranked.map(s => ({ uid: s.p.uid, placement: s.placement, points: s.points, unmasks: s.unmasks })));
     lbCache = null;
     for (const s of ranked) {
-      // misi & gelar
-      let missions = null;
-      try {
-        const before = await store.getProfile(s.p.uid);
-        const st = (g.stat && g.stat[s.p.id]) || {};
-        const sec = G.secretStatus(g, s.p, true);
-        const x = { won: g.winnerId === s.p.id, placement: s.placement, players: n, unmasks: s.unmasks || 0, cards: st.cards || 0,
-          accuseHits: st.accuseHits || 0, selfMoves: st.selfMoves || 0, aloneTurns: st.aloneTurns || 0, midnight: !!g.midnight, secretDone: !!(sec && sec.done) };
-        // statistik profil SEBELUM pesta ini dipakai sebagai titik awal (awardMatch sudah menambah 1 pesta)
-        const base = { games: Math.max(0, (before?.games || 1) - 1), wins: Math.max(0, (before?.wins || 0) - (x.won ? 1 : 0)), unmasks: Math.max(0, (before?.unmasks || 0) - x.unmasks) };
-        const r = MISSIONS.apply(before?.progress, x, base);
-        await store.saveProgress(s.p.uid, r.progress);
-        missions = { secret: sec, unlocked: r.unlocked.map(MISSIONS.titleOf) };
-      } catch (e) { console.error('missions', e.message); }
+      if (s.progress) await store.saveProgress(s.p.uid, s.progress).catch(e => console.error('progress', e.message));
       const prof = await store.getProfile(s.p.uid);
       const total = Number(prof?.points) || 0;
       const reward = {
         placement: s.placement, points: s.points, total,
         tierBefore: SCORING.tierOf(total - s.points), tierAfter: SCORING.tierOf(total),
         rank: await store.rank(s.p.uid).catch(() => null),
-        missions,
+        missions: s.missions || null,
       };
       for (const sock of userSockets(s.p.uid)) { sock.data.profile = prof; sock.emit('reward', reward); sock.emit('me', mePayload(sock)); }
     }
@@ -169,7 +182,7 @@ function cleanName(n) {
 function sync(room) {
   const g = room.game;
   const view = G.publicView(g);
-  const extra = Object.fromEntries(g.players.map(p => [p.id, { publicId: p.publicId || null, avatarUrl: p.avatarUrl || null, tier: p.uid ? p.tier : null, title: p.uid ? p.title || null : null, guest: !p.uid }]));
+  const extra = Object.fromEntries(g.players.map(p => [p.id, { publicId: p.publicId || null, avatarUrl: p.avatarUrl || null, tier: p.uid ? p.tier : null, title: p.uid ? p.title || null : null, cos: p.uid ? p.cos || null : null, guest: !p.uid }]));
   view.players = view.players.map(p => ({ ...p, ...extra[p.id] }));
   const pub = { ...view, code: room.code, hostId: room.hostId, visibility: room.visibility, tutorial: !!room.tutorial, turnEndsAt: room.turnEndsAt, serverNow: Date.now() };
   io.to(room.code).emit('state', pub);
@@ -290,7 +303,7 @@ io.on('connection', socket => {
   const newPlayer = (name) => {
     const prof = socket.data.profile;
     const p = { id: nanoid(10), name, connected: true, alive: true, cards: [], charId: null };
-    if (prof) Object.assign(p, { name: prof.username, uid: socket.data.user.uid, publicId: prof.public_id, avatarUrl: prof.avatar_url || null, tier: SCORING.tierOf(Number(prof.points) || 0), title: pub(prof).title });
+    if (prof) Object.assign(p, { name: prof.username, uid: socket.data.user.uid, publicId: prof.public_id, avatarUrl: prof.avatar_url || null, tier: SCORING.tierOf(Number(prof.points) || 0), title: pub(prof).title, cos: pub(prof).cos });
     return p;
   };
   const displayName = (name) => socket.data.profile ? socket.data.profile.username : cleanName(name);
@@ -345,10 +358,26 @@ io.on('connection', socket => {
       reply(cb, mePayload(socket));
     } catch (e) { console.error('set_title', e.message); reply(cb, { error: 'Gagal memakai gelar' }); }
   });
+  socket.on('set_cosmetic', async ({ kind, key } = {}, cb) => {
+    const user = socket.data.user;
+    if (!user || !socket.data.profile) return reply(cb, { error: 'Masuk dulu untuk memakai hiasan' });
+    try {
+      const prof = await store.getProfile(user.uid);
+      const item = COSMETICS.find(kind, key);
+      if (!item) return reply(cb, { error: 'Hiasan tidak dikenal' });
+      if (!COSMETICS.owned(item, prof?.progress?.done)) return reply(cb, { error: 'Hiasan ini belum terbuka' });
+      await store.setCosmetics(user.uid, { ...COSMETICS.resolve(prof), [kind]: key });
+      socket.data.profile = await store.getProfile(user.uid);
+      lbCache = null;
+      const room = rooms.get(socket.data.code), p = room && G.player(room.game, socket.data.playerId);
+      if (p) { p.cos = pub(socket.data.profile).cos; sync(room); }
+      reply(cb, { ...mePayload(socket), cosmetics: COSMETICS.view(socket.data.profile) });
+    } catch (e) { console.error('set_cosmetic', e.message); reply(cb, { error: 'Gagal memakai hiasan' }); }
+  });
   socket.on('my_missions', async (_ = {}, cb) => {
     const user = socket.data.user;
     if (!user || !socket.data.profile) return reply(cb, { error: 'Belum masuk' });
-    try { const prof = await store.getProfile(user.uid); reply(cb, { missions: MISSIONS.view(prof?.progress), title: prof?.title || null }); }
+    try { const prof = await store.getProfile(user.uid); reply(cb, { missions: MISSIONS.view(prof?.progress), daily: DAILY.view(prof?.progress), cosmetics: COSMETICS.view(prof), title: prof?.title || null }); }
     catch (e) { reply(cb, { error: 'Gagal memuat misi' }); }
   });
   socket.on('my_stats', async (_ = {}, cb) => {

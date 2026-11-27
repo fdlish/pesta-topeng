@@ -4,6 +4,7 @@ import { initPortraits, getPortrait, warmAll } from './portraits.js';
 import * as Auth from './auth.js';
 import * as Home from './home.js';
 import * as Settings from './settings.js';
+import { drawShareCard } from './sharecard.js';
 
 const $ = s => document.querySelector(s);
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
@@ -266,7 +267,7 @@ function render() {
   else {
     show('game');
     if (!board) { try { initBoard(); } catch (e) { console.error(e); toast('Browser ini tidak mendukung WebGL/3D.', 'error'); } }
-    if (board) { board.myId = me.id; board.update(state, {}); if (introPending) { introPending = false; board.intro(); } }
+    if (board) { board.myId = me.id; applyCosmetics(); board.update(state, {}); if (introPending) { introPending = false; board.intro(); } }
     renderGame();
     renderOrder();
     renderCoach();
@@ -282,7 +283,7 @@ function render() {
 function playerItem(p, opts = {}) {
   const li = el('li', (p.alive ? '' : 'dead') + (p.id === me.id ? ' self' : ''));
   const left = el('span', 'pname');
-  const av = Home.avatar(p.name, p.avatarUrl); if (p.bot) av.classList.add('bot'); left.append(av);
+  const av = Home.avatar(p.name, p.avatarUrl, 'p-avatar', p.cos?.frame); if (p.bot) av.classList.add('bot'); left.append(av);
   const nm = el('span', 'pn-wrap');
   const line = el('span', 'pn-line');
   line.append(el('span', 'pn', p.name));
@@ -419,7 +420,7 @@ function initBoard() {
       renderGame(); processFx();
     },
   });
-  board.setOptions(boardOpts());
+  board.setOptions(boardOpts()); applyCosmetics();
 }
 function rollDice() {
   if (!state || state.turnPlayerId !== me.id || state.step !== 'ROLL' || (board && board.rolling)) return;
@@ -847,6 +848,13 @@ function showReveal(ev, done) {
   afterPaint(() => setTimeout(close, ev.type === 'eliminated' ? 4700 : 3000));
 }
 
+// ---------- kosmetik: dadu milik pemain yang giliran, taplak milik sendiri ----------
+function applyCosmetics() {
+  if (!board || !state) return;
+  const tp = state.players.find(p => p.id === state.turnPlayerId);
+  board.setDieSkin(tp && tp.cos ? tp.cos.dice : 'klasik');
+  board.setCloth(Home.acct.profile?.cos?.cloth || 'nila');
+}
 // ---------- layar akhir + konfeti ----------
 let celebrated = false, confettiRAF = null;
 function renderOverlay() {
@@ -917,10 +925,51 @@ function resultText(s) {
   (s.recap?.awards || []).forEach(a => { const p = s.players.find(x => x.id === a.playerId); if (p) lines.push(`🏅 ${a.title}: ${p.name}`); });
   return lines.join('\n');
 }
-$('#shareResultBtn').onclick = async () => {
-  const text = resultText(state), url = location.origin;
-  try { if (navigator.share) await navigator.share({ title: 'Hasil Pesta Topeng', text, url }); else { await navigator.clipboard.writeText(`${text}\n${url}`); toast('Hasil pesta disalin!'); } } catch {}
+let shareBlob = null;
+function shareData(s) {
+  const mine = (s.standings || []).find(x => x.id === me.id) || { placement: 1 };
+  const meP = s.players.find(p => p.id === me.id) || {};
+  const c = ch(meP.revealed || priv.charId) || {};
+  const st = (s.recap && s.recap.stats && s.recap.stats[me.id]) || {};
+  const rw = Home.getReward();
+  return {
+    win: s.winnerId === me.id, placement: mine.placement, total: s.players.length,
+    charName: c.name || '?', portrait: c.id ? getPortrait(c.id) : '',
+    stats: { unmasks: st.unmasks || 0, cards: st.cards || 0 }, turns: s.recap ? s.recap.turns : 0,
+    awards: (s.recap?.awards || []).filter(a => a.playerId === me.id),
+    secret: s.secrets && s.secrets[me.id] ? { done: s.secrets[me.id].done, text: s.secrets[me.id].text } : null,
+    titles: (rw?.missions?.unlocked || []).map(t => t.title),
+    others: s.players.filter(p => p.id !== me.id && p.revealed).map(p => ({ name: p.name, portrait: getPortrait(p.revealed) })),
+    url: location.host,
+  };
+}
+async function openShare() {
+  const dlg = $('#shareModal'), img = $('#shareImg');
+  dlg.classList.remove('hidden'); img.classList.add('hidden'); $('#shareLoading').classList.remove('hidden');
+  shareBlob = null;
+  try {
+    const cv = await drawShareCard(shareData(state));
+    shareBlob = await new Promise(r => cv.toBlob(r, 'image/png'));
+    img.src = URL.createObjectURL(shareBlob); img.classList.remove('hidden'); $('#shareLoading').classList.add('hidden');
+  } catch (e) { console.warn(e); $('#shareLoading').textContent = 'Kartu gagal digambar. Coba salin teks hasil.'; }
+  $('#shareSend').focus();
+}
+const shareFile = () => new File([shareBlob], 'pesta-topeng-hasil.png', { type: 'image/png' });
+function saveShare() { if (!shareBlob) return; const a = document.createElement('a'); a.href = URL.createObjectURL(shareBlob); a.download = 'pesta-topeng-hasil.png'; a.click(); toast('Gambar disimpan'); }
+$('#shareResultBtn').onclick = () => openShare();
+$('#shareClose').onclick = () => $('#shareModal').classList.add('hidden');
+$('#shareModal').addEventListener('click', e => { if (e.target.id === 'shareModal') $('#shareModal').classList.add('hidden'); });
+$('#shareModal').addEventListener('keydown', e => { if (e.key === 'Escape') $('#shareModal').classList.add('hidden'); });
+$('#shareSave').onclick = saveShare;
+$('#shareSend').onclick = async () => {
+  if (!shareBlob) return;
+  const text = `${resultText(state)}\n${location.origin}`;
+  try {
+    if (navigator.canShare && navigator.canShare({ files: [shareFile()] })) await navigator.share({ files: [shareFile()], text });
+    else { saveShare(); toast('Perangkat ini tidak bisa berbagi gambar langsung, jadi gambarnya disimpan.'); }
+  } catch {}
 };
+$('#shareCopy').onclick = async () => { try { await navigator.clipboard.writeText(`${resultText(state)}\n${location.origin}`); toast('Hasil pesta disalin!'); } catch { toast('Gagal menyalin'); } };
 function startConfetti() {
   if (document.body.classList.contains('reduce-motion')) return;
   const cv = $('#confetti'), g = cv.getContext('2d');
@@ -970,7 +1019,7 @@ const fontsReady = Promise.race([
 Promise.all([fetch('/meta').then(r => r.json()), fetch('/config').then(r => r.json()), fontsReady]).then(async ([m, config]) => {
   META = m; initPortraits(META.characters);
   try { buildCast(); } catch (e) { console.warn('cast', e); }
-  Home.initHome(config, { socket, emit, toast, sfx: A.sfx, onJoined });
+  Home.initHome(config, { socket, emit, toast, sfx: A.sfx, onJoined, onCosmetics: () => applyCosmetics() });
   await Auth.initAuth(config, onAuthToken);
   authToken = await Auth.currentToken();
   socket.connect();

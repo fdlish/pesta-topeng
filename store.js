@@ -9,6 +9,7 @@ const path = require('path');
 const crypto = require('crypto');
 const SCORING = require('./scoring');
 const MISSIONS = require('./missions');
+const COSMETICS = require('./cosmetics');
 
 const USERNAME_RE = /^[A-Za-z0-9_]{3,16}$/;
 const ID_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -29,6 +30,7 @@ const pub = p => p && ({
   tier: SCORING.tierOf(Number(p.points) || 0),
   title: MISSIONS.titleOf(p.title && p.progress?.done?.[p.title] ? p.title : null),
   titles: Object.keys(p.progress?.done || {}).length,
+  cos: COSMETICS.resolve(p),
 });
 
 // Peringkat kompetisi standar: seri poin dipecah kemenangan, seri penuh = peringkat sama.
@@ -109,6 +111,10 @@ class SupabaseStore {
     const { error } = await this.db.from('profiles').update({ progress, updated_at: new Date().toISOString() }).eq('user_id', uid);
     if (error) throw error;
   }
+  async setCosmetics(uid, cosmetics) {
+    const { error } = await this.db.from('profiles').update({ cosmetics }).eq('user_id', uid);
+    if (error) throw error;
+  }
   async setTitle(uid, key) {
     const { data, error } = await this.db.from('profiles').update({ title: key }).eq('user_id', uid).select().single();
     if (error) throw error;
@@ -117,7 +123,7 @@ class SupabaseStore {
 
   async leaderboard(limit = 50) {
     const { data, error } = await this.db.from('profiles')
-      .select('public_id, username, avatar_url, points, games, wins, unmasks, title, progress')
+      .select('public_id, username, avatar_url, points, games, wins, unmasks, title, progress, cosmetics')
       .gt('games', 0)
       .order('points', { ascending: false }).order('wins', { ascending: false }).order('games', { ascending: true })
       .limit(limit);
@@ -191,6 +197,7 @@ class LocalStore {
   }
   async touchAvatar() {}
   async saveProgress(uid, progress) { const p = this.data.profiles[uid]; if (p) { p.progress = progress; this.save(); } }
+  async setCosmetics(uid, c) { const p = this.data.profiles[uid]; if (p) { p.cosmetics = c; this.save(); } }
   async setTitle(uid, key) { const p = this.data.profiles[uid]; if (p) { p.title = key; this.save(); } return p; }
   async awardMatch(code, n, results) {
     const id = this.data.matches.length + 1;
