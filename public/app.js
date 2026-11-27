@@ -632,6 +632,13 @@ const afterPaint = fn => requestAnimationFrame(() => requestAnimationFrame(fn));
 let fxBusy = false;
 function processFx() {
   if (fxBusy || !fxQueue.length || (board && board.rolling)) return;
+  const head = fxQueue[0];
+  if (board && ['eliminated', 'killed'].includes(head.type)) { // tunggu animasi bidak (zoom, abu-abu, jatuh) selesai dulu
+    const end = board.unmaskEnd(head.charId);
+    if (end === undefined && !head._waited) { head._waited = true; return void setTimeout(processFx, 120); }
+    // tunggu sampai papan menyatakan selesai (perangkat lambat bisa lebih lama), maksimal 2,5 dtk melewati perkiraan
+    if (end && performance.now() < end + 2500) return void setTimeout(processFx, Math.max(60, Math.min(250, end - performance.now() + 30)));
+  }
   const ev = fxQueue.shift(); fxBusy = true;
   const done = () => { fxBusy = false; processFx(); if (state && state.phase === 'GAME_OVER') render(); };
   showReveal(ev, done);
@@ -653,9 +660,8 @@ function showReveal(ev, done) {
     line = ev.self ? `Ketahuan sendirian. Ternyata dia adalah` : `${pname(ev.by)} membuka topeng. Ternyata dia adalah`;
     if (isMe) { A.sfx.lose(); vibrate([80, 60, 160]); } else { A.sfx.unmask(); vibrate(60); }
     A.say(['unmask', isMe ? 'you_out' : `c-${c.id}`], { prio: 2, ttl: 8000 });
-    board && board.shake(0.16, 0.6);
   } else if (ev.type === 'killed') {
-    kicker = 'Hanya tamu biasa'; title = 'Salah sasaran!'; line = `${pname(ev.by)} membuka topeng. Ternyata hanya`; A.sfx.poof(); A.say(['guest', `c-${c.id}`], { prio: 2, ttl: 8000 }); board && board.shake(0.06, 0.35);
+    kicker = 'Hanya tamu biasa'; title = 'Salah sasaran!'; line = `${pname(ev.by)} membuka topeng. Ternyata hanya`; A.sfx.poof(); A.say(['guest', `c-${c.id}`], { prio: 2, ttl: 8000 });
   } else {
     kicker = 'Kartu dibuka'; title = `${pname(ev.by)} membuka kartu`; line = 'Tamu ini disuruh pulang dari pesta:'; A.sfx.card(); A.say(['card', `c-${c.id}`], { prio: 2, ttl: 8000 });
   }
@@ -669,7 +675,7 @@ function showReveal(ev, done) {
   front.append(el('p', 'rv-hint', 'Ketuk untuk lanjut'));
   inner.append(back, front); card.append(inner);
   $('#fx').append(card);
-  afterPaint(() => { card.classList.add('show'); setTimeout(() => card.classList.add('flip'), ev.type === 'eliminated' && !document.body.classList.contains('reduce-motion') ? 900 : 380); });
+  afterPaint(() => { card.classList.add('show'); setTimeout(() => card.classList.add('flip'), ev.type === 'eliminated' && !document.body.classList.contains('reduce-motion') ? 600 : 380); });
   let closed = false;
   const close = () => { if (closed) return; closed = true; card.classList.add('out'); setTimeout(() => { card.remove(); done(); }, 280); };
   card.addEventListener('click', close);

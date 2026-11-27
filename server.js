@@ -167,7 +167,7 @@ function scheduleTurn(room) {
   const cp = G.currentPlayer(room.game);
   if (!cp) return;
   // bot "berpikir" sebentar; setelah dadu dilempar tunggu animasi dadu/terbang selesai di layar pemain
-  const ms = cp.bot ? (room.game.step === 'ROLL' ? rnd(1300, 2200) : rnd(2600, 3800)) * (room.tutorial ? 1.3 : 1) : cp.connected ? TURN_MS * (room.tutorial ? 2 : 1) : OFFLINE_TURN_MS;
+  const ms = cp.bot ? (room.game.step === 'ROLL' ? rnd(5200, 6500) : rnd(5500, 7000)) /* ±6 detik per langkah: cukup waktu untuk mengikuti gerak bot */ : cp.connected ? TURN_MS * (room.tutorial ? 2 : 1) : OFFLINE_TURN_MS;
   room.turnEndsAt = Date.now() + ms;
   room.turnTimer = setTimeout(() => {
     try { cp.bot ? G.botAct(room.game) : G.autoAct(room.game); } catch (e) { console.error('autoAct', e.message); try { G.autoAct(room.game); } catch {} }

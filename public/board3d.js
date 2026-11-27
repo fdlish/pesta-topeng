@@ -862,7 +862,57 @@ export class Board3D {
       ring.scale.setScalar(1 + k * (big ? 9 : 5)); ring.material.opacity = 0.9 * (1 - k);
     }, () => { for (const p of parts) { this.scene.remove(p.m); p.m.material.dispose(); } geo.dispose(); this.scene.remove(ring); ring.geometry.dispose(); ring.material.dispose(); });
   }
+  // Kapan animasi buka topeng untuk bidak ini selesai (ms, performance.now). undefined = belum dimulai.
+  unmaskEnd(id) { return this.unmaskEnds && this.unmaskEnds.get(id); }
+
+  // Topeng dibuka: kamera mendekat → bidak gemetar → memudar abu-abu → jatuh terguling → diam sejenak.
+  // Kartu pengungkapan baru muncul setelah ini (app menunggu unmaskEnd). Lalu bidak tenggelam & hilang.
+  unmaskAnim(f, type) {
+    f.removing = true; f.room = null;
+    const id = f.id || [...this.figures].find(([, v]) => v === f)?.[0];
+    this.unmaskEnds = this.unmaskEnds || new Map();
+    const big = type === 'eliminated';
+    const T = { zoom: 0.5, shake: 0.6, grey: 0.6, fall: 0.55, hold: big ? 0.6 : 0.4 };
+    const total = T.zoom + T.shake + T.grey + T.fall + T.hold;
+    this.unmaskEnds.set(id, performance.now() + total * 1000);
+    // kamera: sorot dekat bidak selama seluruh animasi (kecuali sedang ada sinematik lain)
+    if (!this.cineF && this.camMode !== 'follow') {
+      if (!this.camMode) this.camSaved = { pos: this.camera.position.clone(), target: this.controls.target.clone() };
+      this.camFrom = null; this.camMode = 'spot'; this.spotF = f; this.spotT = 0; this.spotDur = total + 0.5; this.spotZoom = 0.28; this.controls.enabled = false;
+    }
+    // material dipisah per bidak agar bidak lain tidak ikut abu-abu; dipulihkan setelah selesai
+    const mats = [];
+    f.inner.traverse(o => { if (o.isMesh && o.material && o.material.color) { const orig = o.material; o.material = orig.clone(); mats.push({ o, orig, from: orig.color.clone() }); } });
+    const grey = new THREE.Color('#8a8f99');
+    const start = f.group.position.clone(), baseY = f.inner.position.y;
+    const t1 = T.zoom, t2 = t1 + T.shake, t3 = t2 + T.grey, t4 = t3 + T.fall;
+    let fell = false;
+    this.tween(total + 0.7, t => {
+      const s = t * (total + 0.7);
+      // gemetar
+      if (s > t1 && s < t3) { const k = (s - t1) / (t3 - t1); f.inner.rotation.z = Math.sin(s * 38) * 0.09 * (1 - k * 0.5); }
+      // memudar abu-abu
+      if (s > t2) { const k = Math.min(1, (s - t2) / T.grey); for (const m of mats) m.o.material.color.copy(m.from).lerp(grey, k); }
+      // jatuh terguling dengan sedikit pantulan
+      if (s > t3) {
+        const k = Math.min(1, (s - t3) / T.fall);
+        const e = k < 0.75 ? Math.pow(k / 0.75, 2) : 1 - Math.sin((k - 0.75) / 0.25 * Math.PI) * 0.06;
+        f.inner.rotation.z = e * Math.PI / 2 * 0.96;
+        f.inner.position.y = baseY + Math.sin(Math.min(1, k) * Math.PI) * 0.12;
+        if (!fell && k > 0.7) { fell = true; this.burst(start, big); this.shake(big ? 0.16 : 0.07, big ? 0.6 : 0.35); }
+      }
+      // setelah diam sejenak: tenggelam & mengecil
+      if (s > t4 + T.hold) { const k = Math.min(1, (s - t4 - T.hold) / 0.7); f.group.position.y = start.y - k * 0.8; f.group.scale.setScalar(FIG_S * (1 - k * 0.9)); }
+    }, () => {
+      f.group.visible = false; f.removing = false; f.inner.rotation.set(0, 0, 0); f.inner.position.y = baseY;
+      f.group.position.y = start.y; f.group.scale.setScalar(FIG_S);
+      for (const m of mats) { m.o.material.dispose(); m.o.material = m.orig; }
+      this.unmaskEnds.delete(id);
+    }, f);
+  }
+
   removeAnim(f, type) {
+    if ((type === 'eliminated' || type === 'killed') && !REDUCED) return this.unmaskAnim(f, type);
     f.removing = true; f.room = null;
     const start = f.group.position.clone();
     if (type !== 'left') this.burst(start, type === 'eliminated');
@@ -957,10 +1007,10 @@ export class Board3D {
       const fp = this.spotF.group.position;
       const dir = s.pos.clone().sub(s.target).normalize();
       const wantT = new THREE.Vector3(fp.x, FLOOR_Y + 0.7, fp.z);
-      const wantP = wantT.clone().add(dir.multiplyScalar(Math.min(8.5, s.pos.distanceTo(s.target) * 0.36)));
+      const wantP = wantT.clone().add(dir.multiplyScalar(Math.min(8.5, s.pos.distanceTo(s.target) * (this.spotZoom || 0.36))));
       const k = Math.min(1, dt * 5);
       this.controls.target.lerp(wantT, k); this.camera.position.lerp(wantP, k);
-      if (this.spotT > 1.9) { this.camMode = 'return'; this.camT = 0; this.camDur = 0.8; this.spotF = null; }
+      if (this.spotT > (this.spotDur || 1.9)) { this.camMode = 'return'; this.camT = 0; this.camDur = 0.8; this.spotF = null; this.spotDur = null; }
     } else if (this.camMode === 'follow' && this.cineF) {
       const fp = this.cineF.group.position;
       const dir = s.pos.clone().sub(s.target).normalize();
