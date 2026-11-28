@@ -240,8 +240,7 @@ function renderRooms() {
   $('#roomsStatus').textContent = `${open} room publik terbuka`;
   if (!rooms.length) {
     const li = el('li', 'room-empty');
-    li.innerHTML = '<svg class="ic big" viewBox="0 0 64 40" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M2 7C10 1 22 2 32 10C42 2 54 1 62 7C64 22 56 34 44 34C38 34 35 27 32 27C29 27 26 34 20 34C8 34 0 22 2 7ZM12 17C14 13 21 13 25 17C21 21 15 21 12 17ZM39 17C43 13 50 13 52 17C49 21 43 21 39 17Z"/></svg>';
-    li.append(el('b', null, 'Belum ada pesta terbuka'), el('span', null, 'Buka pesta baru dengan pilihan Terbuka, nanti tamu lain bisa mampir dari sini.'));
+    li.append(el('b', null, 'Belum ada pesta yang buka pintu.'), el('span', null, 'Buka pesta baru dengan pilihan Terbuka, tamu lain bisa langsung mampir dari daftar ini.'));
     return ul.replaceChildren(li);
   }
   ul.replaceChildren(...rooms.map(r => {
@@ -448,7 +447,7 @@ function renderDailyStrip() {
   const dots = el('span', 'ds-dots');
   daily.list.forEach(c => { const d = el('i', `ds-dot tt-${c.tier}` + (c.done ? ' on' : '')); d.title = c.text; dots.append(d); });
   const t = el('span', 'ds-text');
-  t.append(el('b', null, 'Tantangan hari ini'), el('small', null, acct.profile ? (done === 3 ? `Semua selesai, +${got} poin. Ganti dalam ${leftText(daily.resetsIn)}` : `${done}/3 selesai · bonus sampai +${total} poin`) : `Masuk untuk ikut, bonus sampai +${total} poin`));
+  t.append(el('b', null, 'Tantangan hari ini'), el('small', null, acct.profile ? (done === 3 ? `Semua selesai, +${got} poin. Ganti dalam ${leftText(daily.resetsIn)}` : `${done}/3 selesai, bonus +${total} poin`) : `Masuk untuk ikut, bonus sampai +${total} poin`));
   b.append(dots, t, el('span', 'ds-go', acct.profile ? 'Lihat' : 'Masuk'));
   b.setAttribute('aria-label', `Tantangan hari ini, ${done} dari 3 selesai`);
 }

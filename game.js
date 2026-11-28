@@ -100,7 +100,7 @@ function log(g, text) {
   if (g.log.length > 60) g.log.shift();
 }
 
-const charLabel = id => `${CHAR[id].emoji} ${CHAR[id].name}`;
+const charLabel = id => CHAR[id].name;
 const player = (g, pid) => g.players.find(p => p.id === pid);
 const alivePlayers = g => g.players.filter(p => p.alive);
 const currentPlayer = g => (g.phase === 'PLAYING' ? g.players[g.turnIdx] : null);
@@ -178,7 +178,7 @@ function checkWin(g) {
     g.winnerId = alive[0] ? alive[0].id : null;
     g.standings = standings(g);
     g.recap = buildRecap(g);
-    log(g, alive[0] ? `🏆 ${alive[0].name} (${charLabel(alive[0].charId)}) menang!` : 'Tidak ada pemenang.');
+    log(g, alive[0] ? `${alive[0].name} (${charLabel(alive[0].charId)}) menang!` : 'Tidak ada pemenang.');
     return true;
   }
   return false;
